@@ -1,4 +1,4 @@
-rest_test
+mocknode
 =====
 
 An OTP application

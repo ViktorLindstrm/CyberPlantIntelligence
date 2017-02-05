@@ -1,4 +1,4 @@
-rest_test
+rest_hello_world
 =====
 
 An OTP application
