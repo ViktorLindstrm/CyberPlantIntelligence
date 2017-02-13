@@ -126,7 +126,6 @@ sensor(<<"POST">>, Node, Req0) ->
 
            _ -> 
              {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
-             io:format("PostVals: ~p~n",[PostVals]),
              {_,NewName} = lists:keyfind(<<"newnode">>,1,PostVals),
              case NewName of 
                <<>> -> undefined;
@@ -149,7 +148,11 @@ sensor(<<"POST">>, Node, Req0) ->
 sensor(<<"GET">>, Node, Req0) ->
   NodeId = erlang:binary_to_atom(Node,utf8),
   {ok,RawData} = plantsys_mng:get_data(NodeId),
-  Data = lists:reverse(fixdata(lists:reverse([binary_to_integer(maps:get(<<"data">>,X)) || X <- RawData]),0,[])),
+  Data = lists:map(fun(X) -> 
+                D = binary_to_integer(maps:get(<<"data">>,X)),
+                T = maps:get(<<"timestamp">>,X),
+                [binary_to_integer(T),D]
+            end,RawData),
   Title = "Settings",
   Nav = nav(),
   {ok,Image} = plantsys_mng:get_image(NodeId),
@@ -190,7 +193,7 @@ head(DataPoints,Limit) ->
     ,"<script type=\"text/javascript\" src=\"/static/flot/jquery.flot.axislabels.js\"></script>"
     ,"<script>"
     ,"var markings = [ { yaxis: { from: 0, to: ",Limit," }, color: \"#FF6666\" }];"
-    ,"var options = {grid: { markings: markings, backgroundColor: { colors: [\"#E6F9FF\",\"#96CBFF\"] } }, yaxis:{ min:0 }, xaxis:{ } };"
+    ,"var options = {grid: { markings: markings, backgroundColor: { colors: [\"#E6F9FF\",\"#96CBFF\"] } }, yaxis:{ min:0 }, xaxis:{mode: \"time\" } };"
     ,"$(document).ready(function() { $.plot( $(\"#flot-placeholder\"), [ ",DataPoints," ], options); }); </script>"].  
 
 nav() -> 
@@ -292,7 +295,3 @@ body(Node,Name,Limit,Image) ->
 
 plot() -> 
   [ "<div id=\"flot-placeholder\" style=\"width:100%;height:400px\"></div>"].
-fixdata([],_,R) -> R;
-fixdata(L,N,R) -> 
-  fixdata(tl(L),N+1,[[N,hd(L)]|R]).
-  
