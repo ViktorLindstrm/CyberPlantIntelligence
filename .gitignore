@@ -1,9 +1,10 @@
 .eunit
 deps
 *.o
+*.swp
 *.beam
 *.plt
-_build*
+_build/*
 erl_crash.dump
 ebin
 rel/example_project
