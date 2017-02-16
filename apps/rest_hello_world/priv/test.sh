@@ -8,7 +8,7 @@ for i in $(seq -s' ' $start $end); do
     DATA="{\"data\":\"$RE\"}"
     echo $DATA
     curl -i -H "Content-Type: application/json" -d $DATA $TO
-    sleep 10
+    sleep 1
     echo $ENDPONT
   done
 done 

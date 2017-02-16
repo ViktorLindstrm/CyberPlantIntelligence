@@ -15,9 +15,12 @@
 
 -export([add_node/1,
          new_datapoint/2,
+         remove_node/1,
          add_pump/1,
          start_pump/1,
          stop_pump/1,
+         get_pump/1,
+         set_pump/2,
          get_data/1,
          get_pumpdata/1,
          get_settings/1,
@@ -57,7 +60,7 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -75,7 +78,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, #state{}}.
+  {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -133,32 +136,33 @@ handle_call({add_data,{NodeId,Data}}, _From, #state{nodes=Nodes} = State) ->
           end,
   {reply, Reply, State};
 
-handle_call({add_pumpnode,{PumpId,NodeId}}, _From, #state{nodes=Nodes,pumps=Pumps} = State) ->
-  Reply = case lists:keyfind(PumpId,1,Pumps) of 
-            {_,Pid} -> 
-              case lists:keyfind(NodeId,1,Nodes) of 
-                {NId,NPid} -> gen_server:call(Pid,{add_node,{NId,NPid}}),
-                ok;
-                _ -> {error,no_such_node}
-              end;
-            false -> 
-              error
-          end,
-  {reply, Reply, State};
-
-
 handle_call({remove_pumpnode,{PumpId,NodeId}}, _From, #state{nodes=Nodes,pumps=Pumps} = State) ->
   Reply = case lists:keyfind(PumpId,1,Pumps) of 
-            {_,Pid} -> 
+            {_,PumpPid} -> 
               case lists:keyfind(NodeId,1,Nodes) of 
-                {NId,_} -> gen_server:call(Pid,{remove_node,NId}),
-                ok;
-                _ -> {error,no_such_node}
+                {NId,NodePid} -> 
+                  gen_server:call(PumpPid,{remove_node,NId}),
+                  gen_server:call(NodePid,{set_pump,undefined}),
+                  ok;
+                _ -> 
+                  {error,no_such_node}
               end;
             false -> 
               error
           end,
   {reply, Reply, State};
+
+handle_call({remove_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
+  {NewNodes,Reply} = case lists:keyfind(NodeId,1,Nodes) of 
+                       {_,Pid} -> 
+                         Rep = gen_server:call(Pid,{terminate}),
+                         N = lists:keydelete(NodeId,1,Nodes),
+                         {N,Rep};
+                       false -> 
+                         {Nodes,{error,no_such_node}}
+                     end,
+  NewState = State#state{nodes=NewNodes},
+  {reply, Reply, NewState};
 
 handle_call({get_data,NodeId}, _From, #state{nodes=Nodes} = State) ->
   Reply = case lists:keyfind(NodeId,1,Nodes) of 
@@ -184,6 +188,29 @@ handle_call({set_image,{NodeId,Image}}, _From, #state{nodes=Nodes} = State) ->
           end,
   {reply, Reply, State};
 
+handle_call({set_pump,{NodeId,PumpId}}, _From, #state{pumps=Pumps,nodes=Nodes} = State) ->
+  Reply = case lists:keyfind(NodeId,1,Nodes) of 
+            {_,NodePid} -> 
+              case lists:keyfind(PumpId,1,Pumps) of 
+                {_,PumpPid} ->  
+                  gen_server:call(NodePid,{set_pump,PumpId}),
+                  gen_server:call(PumpPid,{add_node,{NodeId,NodePid}});
+                false -> 
+                  {error_no_such_pump}
+              end;
+            false -> {error,no_such_node}
+          end,
+  {reply, Reply, State};
+
+handle_call({get_pump,NodeId}, _From, #state{nodes=Nodes} = State) ->
+  Reply = case lists:keyfind(NodeId,1,Nodes) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{get_pump});
+            false -> {error,no_such_node}
+          end,
+  {reply, Reply, State};
+
+
 handle_call({find_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
   Reply = case lists:keyfind(NodeId,1,Nodes) of 
             false -> {error,not_found};
@@ -201,9 +228,9 @@ handle_call({get_nodes}, _From, #state{nodes=Nodes} = State) ->
 
 handle_call({get_pumps}, _From, #state{pumps=Pumps} = State) ->
   PumpsIds = lists:map(fun({_,Pid}) ->
-                          {ok,PumpData} = gen_server:call(Pid,{get_current}),
-                          PumpData
-                      end, Pumps),
+                           {ok,PumpData} = gen_server:call(Pid,{get_current}),
+                           PumpData
+                       end, Pumps),
   Reply = {ok, PumpsIds},
   {reply, Reply, State};
 
@@ -238,8 +265,8 @@ handle_call({set_name,{NodeId,Name}}, _From, #state{nodes=Nodes} = State) ->
 
 
 handle_call(_Request, _From, State) ->
-    Reply = ok,
-    {reply, Reply, State}.
+  Reply = ok,
+  {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -252,7 +279,7 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
-    {noreply, State}.
+  {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -265,7 +292,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
-    {noreply, State}.
+  {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -279,7 +306,7 @@ handle_info(_Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
-    ok.
+  ok.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -290,7 +317,7 @@ terminate(_Reason, _State) ->
 %% @end
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-        {ok, State}.
+  {ok, State}.
 
 %%%===================================================================
 %%% Internal functions
@@ -315,6 +342,9 @@ set_name(NodeId,Name) -> gen_server:call(?MODULE,{set_name,{NodeId,Name}}).
 verify_node(NodeId) -> unimplemented.%gen_server:call(?MODULE,{verify,NodeId}).
 set_image(NodeId,Image) -> gen_server:call(?MODULE,{set_image,{NodeId,Image}}).
 get_image(NodeId) -> gen_server:call(?MODULE,{get_image,NodeId}).
+set_pump(NodeId,PumpId) -> gen_server:call(?MODULE,{set_pump,{NodeId,PumpId}}).
+get_pump(NodeId) -> gen_server:call(?MODULE,{get_pump,NodeId}).
+remove_node(NodeId) -> gen_server:call(?MODULE,{remove_node,NodeId}).
 
 
 get_pumpdata(PumpId) -> gen_server:call(?MODULE,{get_pumpdata,PumpId}).

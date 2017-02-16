@@ -37,9 +37,6 @@ add_datapoint(Req,State) ->
       plantsys_mng:add_node(NodeId);
       _ -> undefined
   end,
-  %io:format("In: ~p~n~n",[Data]),
-  %{{YY,MM,DD},{M,H,S}}= calendar:universal_time(),
-  %Time = calendar:universal_time(),
   {M,S,Mi} = erlang:timestamp(),
   Time = (M * 1000000 + S + 3600)*1000 ,
   io:format("Time: ~p~n~n",[Time]),

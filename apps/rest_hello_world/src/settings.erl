@@ -3,8 +3,8 @@
 -export([init/2]).
 
 init(Req0, Opts) ->
-	Method = cowboy_req:method(Req0),
-	#{node := Node,pump:=Pump} = cowboy_req:match_qs([{node, [], undefined},{pump, [], undefined}], Req0),
+  Method = cowboy_req:method(Req0),
+  #{node := Node,pump:=Pump} = cowboy_req:match_qs([{node, [], undefined},{pump, [], undefined}], Req0),
   Req = case Node of
           undefined -> 
             case Pump of 
@@ -22,7 +22,8 @@ init(Req0, Opts) ->
 pump_action({<<"add">>,Node},Pump) -> 
   NodeId = binary_to_atom(Node,utf8),
   PumpId = binary_to_atom(Pump,utf8),
-  plantsys_mng:add_pumpnode(PumpId,NodeId);
+  %plantsys_mng:add_pumpnode(PumpId,NodeId);
+  plantsys_mng:set_pump(NodeId,PumpId);
 
 pump_action({<<"remove">>,Node},Pump) -> 
   NodeId = binary_to_atom(Node,utf8),
@@ -43,7 +44,7 @@ pump_action({<<"status">>,Current},Pump) ->
 pump(<<"POST">>, Pump, Req0) ->
   {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
   pump_action(hd(PostVals),Pump),
-  
+
   cowboy_req:reply(302, #{
     <<"Location">> => <<"/settings?pump=",Pump/binary>>
    }, Req);
@@ -193,7 +194,7 @@ head(DataPoints,Limit) ->
     ,"<script type=\"text/javascript\" src=\"/static/flot/jquery.flot.axislabels.js\"></script>"
     ,"<script>"
     ,"var markings = [ { yaxis: { from: 0, to: ",Limit," }, color: \"#FF6666\" }];"
-    ,"var options = {grid: { markings: markings, backgroundColor: { colors: [\"#E6F9FF\",\"#96CBFF\"] } }, yaxis:{ min:0 }, xaxis:{mode: \"time\" } };"
+    ,"var options = {grid: { markings: markings, backgroundColor: { colors: [\"#E6F9FF\",\"#96CBFF\"] } }, series: { lines: { show: true }, points: { show: true } }, yaxis:{ min:0 }, xaxis:{mode: \"time\" } };"
     ,"$(document).ready(function() { $.plot( $(\"#flot-placeholder\"), [ ",DataPoints," ], options); }); </script>"].  
 
 nav() -> 
@@ -248,30 +249,38 @@ body(Node,Name,Limit,Image) ->
                 Base64 -> 
                   Base64
               end,
+  PumpStatus = case plantsys_mng:get_pump(erlang:binary_to_atom(Node,utf8)) of 
+                 {ok,undefined} -> 
+                   <<"No pump connected">>;
+                 {ok,R} -> 
+                   erlang:atom_to_list(R)
+               end,
+  io:format("Pumpstatus: ~p Node: ~p~n~n",[PumpStatus,Node]),
   [
-  "<div class=\"container-fluid\">
+   "<div class=\"container-fluid\">
         <div class=\"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main\">
           <h1 class=\"page-header\">Settings ",Name,"</h1>",
-      side(),
-      "<div class=\"row placeholders\" id=\"settings\">",
+     side(),
+     "<div class=\"row placeholders\" id=\"settings\">",
 
-      "<div class=\"container\">
-    <div class=\"row\">
-        <div class=\"col-xs-4\">",
-      "<img height=\"40%\" src=\"data:image/jpeg;base64\,",ImageData,"\">",
-        "</div>
-        <div class=\"col-xs-8\">",
-      plot(),
-        "</div>
-    </div>
-</div>",
-
-    "<form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
+   "<div class=\"container\">
+      <div class=\"row\">
+          <div class=\"col-xs-4\">",
+           "<img height=\"40%\" src=\"data:image/jpeg;base64\,",ImageData,"\">",
+         "</div>
+          <div class=\"col-xs-8\">",
+           plot(),
+         "</div>
+        </div>
+    </div>",
+   "<form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
       <div class=\"input-group input-group-lg\">
         <span class=\"input-group-addon\" id=\"sizing-addon1\">Name</span>
         <input type=\"text\" class=\"form-control\" name=\"newnode\" placeholder=\"",Name,"\" aria-describedby= \"sizing-addon1\">
       </div><br/>
-
+      <p> 
+      Connected to pump:",PumpStatus,"
+      </p> 
       <div class=\"input-group input-group-lg\">
         <span class=\"input-group-addon\" id=\"sizing-addon1\">Limit</span>
         <input type=\"text\" class=\"form-control\" name=\"newlimit\" placeholder=",Limit," aria-describedby= \"sizing-addon1\">
