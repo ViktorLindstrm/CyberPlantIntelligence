@@ -3,7 +3,5 @@
 #esp.osdebug(None)
 import gc
 import webrepl
-import main
 webrepl.start()
 gc.collect()
-main.loop()
