@@ -125,7 +125,7 @@ handle_call({set_limit,Limit}, _From, State) ->
   {reply, Reply, NewState};
 
 handle_call({get_data}, _From, #state{data=Data} = State) ->
-  Reply = {ok,Data},
+  Reply = {ok,lists:sublist(Data,50)},
   {reply, Reply, State}.
 
 %%--------------------------------------------------------------------

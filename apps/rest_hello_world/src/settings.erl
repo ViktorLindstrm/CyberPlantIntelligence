@@ -248,13 +248,16 @@ side() ->
           </ul>
         </div>"].
 
-body(Node,Name,Limit,Image) -> 
+image(Image) ->
   ImageData = case Image of 
                 undefined -> 
-                  <<"">>;
+                 plot(); 
                 Base64 -> 
-                  Base64
+                  ["<div class=\"row\"> <div class=\"col-xs-4\">", "<img height=\"40%\" src=\"data:image/jpeg;base64\,",Base64,"\">", "</div> <div class=\"col-xs-8\">", plot(), "</div> </div>"]
               end,
+  ImageData.
+
+body(Node,Name,Limit,Image) -> 
   PumpStatus = case plantsys_mng:get_pump(erlang:binary_to_atom(Node,utf8)) of 
                  {ok,undefined} -> 
                    <<"No pump connected">>;
@@ -269,16 +272,8 @@ body(Node,Name,Limit,Image) ->
      side(),
      "<div class=\"row placeholders\" id=\"settings\">",
 
-   "<div class=\"container\">
-      <div class=\"row\">
-          <div class=\"col-xs-4\">",
-           "<img height=\"40%\" src=\"data:image/jpeg;base64\,",ImageData,"\">",
-         "</div>
-          <div class=\"col-xs-8\">",
-           plot(),
-         "</div>
-        </div>
-    </div>",
+   "<div class=\"container\">",image(Image),
+    "</div>",
    "<form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
       <div class=\"input-group input-group-lg\">
         <span class=\"input-group-addon\" id=\"sizing-addon1\">Name</span>
