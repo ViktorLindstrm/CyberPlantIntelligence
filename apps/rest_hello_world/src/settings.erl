@@ -3,8 +3,8 @@
 -export([init/2]).
 
 init(Req0, Opts) ->
-  Method = cowboy_req:method(Req0),
-  #{node := Node,pump:=Pump} = cowboy_req:match_qs([{node, [], undefined},{pump, [], undefined}], Req0),
+	Method = cowboy_req:method(Req0),
+	#{node := Node,pump:=Pump} = cowboy_req:match_qs([{node, [], undefined},{pump, [], undefined}], Req0),
   Req = case Node of
           undefined -> 
             case Pump of 
@@ -44,7 +44,7 @@ pump_action({<<"status">>,Current},Pump) ->
 pump(<<"POST">>, Pump, Req0) ->
   {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
   pump_action(hd(PostVals),Pump),
-
+  
   cowboy_req:reply(302, #{
     <<"Location">> => <<"/settings?pump=",Pump/binary>>
    }, Req);
@@ -127,19 +127,25 @@ sensor(<<"POST">>, Node, Req0) ->
 
            _ -> 
              {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
-             {_,NewName} = lists:keyfind(<<"newnode">>,1,PostVals),
-             case NewName of 
-               <<>> -> undefined;
-               _ -> plantsys_mng:set_name(NodeId,binary_to_list(NewName))
-             end,
-             {_,NewLimit} = lists:keyfind(<<"newlimit">>,1,PostVals),
-             case re:run(NewLimit,"^[0-9].*$") of
-               {match,_} -> 
-                 Limit = erlang:binary_to_integer(NewLimit),
-                 plantsys_mng:set_limit(NodeId,Limit);
-               _ -> undefined
-             end,
-             Req
+             case hd(PostVals) of
+               {<<"deletenode">>,_} -> 
+                 plantsys_mng:remove_node(NodeId),
+                 Req;
+              _ -> 
+               {_,NewName} = lists:keyfind(<<"newnode">>,1,PostVals),
+               case NewName of 
+                 <<>> -> undefined;
+                 _ -> plantsys_mng:set_name(NodeId,binary_to_list(NewName))
+               end,
+               {_,NewLimit} = lists:keyfind(<<"newlimit">>,1,PostVals),
+               case re:run(NewLimit,"^[0-9].*$") of
+                 {match,_} -> 
+                   Limit = erlang:binary_to_integer(NewLimit),
+                   plantsys_mng:set_limit(NodeId,Limit);
+                 _ -> undefined
+               end,
+               Req
+           end
          end,
   cowboy_req:reply(302, #{
     <<"Location">> => <<"/">>
@@ -297,9 +303,14 @@ body(Node,Name,Limit,Image) ->
         <div class=\"input-group input-group-lg\">
           <span class=\"input-group-addon\" id=\"sizing-addon1\">Picture</span>
           <input type=\"file\" accept=\"image/*\" class=\"form-control\" name=\"newimage\" placeholder=\"Image\" aria-describedby= \"sizing-addon1\">
-          <button type=\"submit\" class=\"btn btn-primary btn-block\">Submit</button>
+          <button type=\"submit\" class=\"btn btn-primary btn-block\">Upload</button>
         </div>
-      </form>"
+      </form>
+
+      <form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
+        <button type=\"submit\" name=\"deletenode\" class=\"btn btn-danger btn-lg pull-left\"><span class=\"glyphicon glyphicon-warning-sign\" aria-hidden=\"true\"></span>  Delete</button>
+      </form>
+   "
   ].
 
 plot() -> 
