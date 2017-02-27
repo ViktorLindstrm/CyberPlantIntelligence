@@ -55,13 +55,12 @@ pump(<<"GET">>, Pump, Req0) ->
   Connected = maps:get(nodes,PumpData),
   Status = maps:get(status,PumpData),
   Title = "Pump Settings",
-  Nav = nav(),
   Body = pump_body(Pump,Status,Connected), 
   Head = head(),
   cowboy_req:reply(200, #{
     <<"content-type">> => <<"text/html">>
    }, ["<html><head><title>", Title, "</title>",Head,"</head>",
-       "<body><p>", Body,"</p>",Nav,"</body></html>"], Req0).
+       "<body>",Body,"</body></html>"], Req0).
 
 pump_body(PumpId,Status,Connected) -> 
   {ok,Nodes} = plantsys_mng:get_nodes(),
@@ -164,20 +163,20 @@ sensor(<<"GET">>, Node, Req0) ->
   Nav = nav(),
   {ok,Image} = plantsys_mng:get_image(NodeId),
   {Head,Body} = case plantsys_mng:get_settings(NodeId) of 
-           {error,_ } -> "nothing";
-           {ok,Settings} ->  Limit = maps:get(limit,Settings),
-                             Name = maps:get(name,Settings),
-                             case Limit of 
-                               undefined -> 
-                                 B = body(Node,Name,"\"no limit set\"",Image),
-                                 H = head(io_lib:format("~w",[Data]),<<"0">>),
-                                 {H,B};
-                               L -> 
-                                 B = body(Node,Name,integer_to_list(L),Image),
-                                 H = head(io_lib:format("~w",[Data]),erlang:integer_to_binary(Limit)),
-                                 {H,B}
-                             end
-         end,
+                  {error,_ } -> "nothing";
+                  {ok,Settings} ->  Limit = maps:get(limit,Settings),
+                                    Name = maps:get(name,Settings),
+                                    case Limit of 
+                                      undefined -> 
+                                        B = body(Node,Name,"\"no limit set\"",Image),
+                                        H = head(io_lib:format("~w",[Data]),<<"0">>),
+                                        {H,B};
+                                      L -> 
+                                        B = body(Node,Name,integer_to_list(L),Image),
+                                        H = head(io_lib:format("~w",[Data]),erlang:integer_to_binary(Limit)),
+                                        {H,B}
+                                    end
+                end,
   cowboy_req:reply(200, #{
     <<"content-type">> => <<"text/html">>
    }, ["<html><head><title>", Title, "</title>",Head,"</head>",
@@ -226,27 +225,28 @@ nav() ->
     </nav>".
 
 side() ->
-[ "<div class=\"row\">
-        <div class=\"col-sm-3 col-md-2 sidebar\">
-          <ul class=\"nav nav-sidebar\">
-            <li class=\"active\"><a href=\"#\">Overview <span class=\"sr-only\">(current)</span></a></li>
-            <li><a href=\"#\">Reports</a></li>
-            <li><a href=\"#\">Analytics</a></li>
-            <li><a href=\"#\">Export</a></li>
-          </ul>
-          <ul class=\"nav nav-sidebar\">
-            <li><a href=\"\">Nav item</a></li>
-            <li><a href=\"\">Nav item again</a></li>
-            <li><a href=\"\">One more nav</a></li>
-            <li><a href=\"\">Another nav item</a></li>
-            <li><a href=\"\">More navigation</a></li>
-          </ul>
-          <ul class=\"nav nav-sidebar\">
-            <li><a href=\"\">Nav item again</a></li>
-            <li><a href=\"\">One more nav</a></li>
-            <li><a href=\"\">Another nav item</a></li>
-          </ul>
-        </div>"].
+[ "
+<div class=\"col-sm-3 col-md-2 sidebar\">
+  <ul class=\"nav nav-sidebar\">
+    <li class=\"active\"><a href=\"#\">Overview <span class=\"sr-only\">(current)</span></a></li>
+    <li><a href=\"#\">Reports</a></li>
+    <li><a href=\"#\">Analytics</a></li>
+    <li><a href=\"#\">Export</a></li>
+  </ul>
+  <ul class=\"nav nav-sidebar\">
+    <li><a href=\"\">Nav item</a></li>
+    <li><a href=\"\">Nav item again</a></li>
+    <li><a href=\"\">One more nav</a></li>
+    <li><a href=\"\">Another nav item</a></li>
+    <li><a href=\"\">More navigation</a></li>
+  </ul>
+  <ul class=\"nav nav-sidebar\">
+    <li><a href=\"\">Nav item again</a></li>
+    <li><a href=\"\">One more nav</a></li>
+    <li><a href=\"\">Another nav item</a></li>
+  </ul>
+</div>"
+].
 
 image(Image) ->
   ImageData = case Image of 
@@ -264,49 +264,46 @@ body(Node,Name,Limit,Image) ->
                  {ok,R} -> 
                    erlang:atom_to_list(R)
                end,
-  io:format("Pumpstatus: ~p Node: ~p~n~n",[PumpStatus,Node]),
   [
-   "<div class=\"container-fluid\">
-        <div class=\"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main\">
-          <h1 class=\"page-header\">Settings ",Name,"</h1>",
-     side(),
-     "<div class=\"row placeholders\" id=\"settings\">",
-
-   "<div class=\"container\">",image(Image),
-    "</div>",
-   "<form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
-      <div class=\"input-group input-group-lg\">
-        <span class=\"input-group-addon\" id=\"sizing-addon1\">Name</span>
-        <input type=\"text\" class=\"form-control\" name=\"newnode\" placeholder=\"",Name,"\" aria-describedby= \"sizing-addon1\">
-      </div><br/>
-      <p> 
-      Connected to pump:",PumpStatus,"
-      </p> 
-      <div class=\"input-group input-group-lg\">
-        <span class=\"input-group-addon\" id=\"sizing-addon1\">Limit</span>
-        <input type=\"text\" class=\"form-control\" name=\"newlimit\" placeholder=",Limit," aria-describedby= \"sizing-addon1\">
-      </div><br/>
-
-
-      <div style=\"margin:1.5em 0 1.5em 0\">
-      <button type=\"submit\" class=\"btn btn-primary btn-block\">Submit</button>
-      </div>
-
-      </form>
-
-      <form action=\"settings?node=",Node,"\" method=\"post\" enctype=\"multipart/form-data\" accept-charset=\"utf-8\">
-        <div class=\"input-group input-group-lg\">
-          <span class=\"input-group-addon\" id=\"sizing-addon1\">Picture</span>
-          <input type=\"file\" accept=\"image/*\" class=\"form-control\" name=\"newimage\" placeholder=\"Image\" aria-describedby= \"sizing-addon1\">
-          <button type=\"submit\" class=\"btn btn-primary btn-block\">Upload</button>
+nav(),"
+<div class=\"container-fluid\">
+  <div class=\"row\">",side(),"
+    <div class=\"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main\">
+      <h1 class=\"page-header\">Settings ",Name,"</h1>
+      <div class=\"row placeholders\" id=\"settings\">
+        <div class=\"container\">",image(Image),"
         </div>
-      </form>
-
-      <form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
-        <button type=\"submit\" name=\"deletenode\" class=\"btn btn-danger btn-lg pull-left\"><span class=\"glyphicon glyphicon-warning-sign\" aria-hidden=\"true\"></span>  Delete</button>
-      </form>
-   "
-  ].
+        <form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
+          <div class=\"input-group input-group-lg\">
+            <span class=\"input-group-addon\" id=\"sizing-addon1\">Name</span>
+            <input type=\"text\" class=\"form-control\" name=\"newnode\" placeholder=\"",Name,"\" aria-describedby= \"sizing-addon1\">
+          </div>
+          <br/>
+          <p> Connected to pump:",PumpStatus," </p> 
+          <div class=\"input-group input-group-lg\">
+            <span class=\"input-group-addon\" id=\"sizing-addon1\">Limit</span>
+            <input type=\"text\" class=\"form-control\" name=\"newlimit\" placeholder=",Limit," aria-describedby= \"sizing-addon1\">
+          </div><br/>
+          <div style=\"margin:1.5em 0 1.5em 0\">
+            <button type=\"submit\" class=\"btn btn-primary btn-block\">Submit</button>
+          </div>
+        </form>
+        <form action=\"settings?node=",Node,"\" method=\"post\" enctype=\"multipart/form-data\" accept-charset=\"utf-8\">
+          <div class=\"input-group input-group-lg\">
+            <span class=\"input-group-addon\" id=\"sizing-addon1\">Picture</span>
+            <input type=\"file\" accept=\"image/*\" class=\"form-control\" name=\"newimage\" placeholder=\"Image\" aria-describedby= \"sizing-addon1\">
+            <button type=\"submit\" class=\"btn btn-primary btn-block\">Upload</button>
+          </div>
+        </form>
+        <form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
+          <button type=\"submit\" name=\"deletenode\" class=\"btn btn-danger btn-lg pull-left\"><span class=\"glyphicon glyphicon-warning-sign\" aria-hidden=\"true\"></span>  Delete</button>
+        </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+ " ].
 
 plot() -> 
   [ "<div id=\"flot-placeholder\" style=\"width:100%;height:400px\"></div>"].
