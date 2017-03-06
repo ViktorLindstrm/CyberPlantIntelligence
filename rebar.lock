@@ -1,16 +1,16 @@
 {"1.1.0",
 [{<<"cowboy">>,
   {git,"https://github.com/ninenines/cowboy.git",
-       {ref,"5838a0c81a978377084b33fd086de10f9775f425"}},
+       {ref,"0d81dc04f1d2194027ab918835b16a9fc0bceb9b"}},
   0},
  {<<"cowlib">>,
   {git,"https://github.com/ninenines/cowlib",
-       {ref,"8e6d0f462850a90bd8a60995f52027839288d038"}},
+       {ref,"07cde7c6def6eeed0174b270229e7d5175673d87"}},
   1},
  {<<"jiffy">>,{pkg,<<"jiffy">>,<<"0.14.11">>},0},
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
-       {ref,"a5d2efcde9a34ad38ab89a26d98ea5335e88625a"}},
+       {ref,"40809cd2b257a8a53bcb5588ecaa88cc5381ff5c"}},
   1}]}.
 [
 {pkg_hash,[
