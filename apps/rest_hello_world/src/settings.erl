@@ -93,7 +93,7 @@ pump_body(PumpId,Status,Connected) ->
                 "<button type=\"submit\" name=\"status\" value="++atom_to_list(Status)++" class=\"btn btn-success btn-lg\"> Water plant </button>"
             end,
   [
-   "<div class=\"container-fluid\">",
+   nav(),"<div class=\"container-fluid\">",
    side(),
    "<div class=\"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main\">
           <h1 class=\"page-header\">Settings ",PumpId,"</h1>
@@ -262,7 +262,7 @@ pumpstatus(Pump) ->
         <<"No pump connected">> -> 
           ["<div class=\"alert alert-warning\" role=\"alert\">",Pump,"</div>"];
         _ ->
-          ["<div class=\"alert alert-success\" role=\"alert\">",Pump,"</div>"]
+          ["<div class=\"alert alert-success\" role=\"alert\"> Pump: ",Pump," is connected to this plant</div>"]
       end,
   io:format("Pumpstatus: ~p~n",[R]),
   R.
