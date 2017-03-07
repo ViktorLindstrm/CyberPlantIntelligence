@@ -257,6 +257,16 @@ image(Image) ->
               end,
   ImageData.
 
+pumpstatus(Pump) ->
+  R = case Pump of
+        <<"No pump connected">> -> 
+          ["<div class=\"alert alert-warning\" role=\"alert\">",Pump,"</div>"];
+        _ ->
+          ["<div class=\"alert alert-success\" role=\"alert\">",Pump,"</div>"]
+      end,
+  io:format("Pumpstatus: ~p~n",[R]),
+  R.
+
 body(Node,Name,Limit,Image) -> 
   PumpStatus = case plantsys_mng:get_pump(erlang:binary_to_atom(Node,utf8)) of 
                  {ok,undefined} -> 
@@ -278,9 +288,9 @@ nav(),"
             <span class=\"input-group-addon\" id=\"sizing-addon1\">Name</span>
             <input type=\"text\" class=\"form-control\" name=\"newnode\" placeholder=\"",Name,"\" aria-describedby= \"sizing-addon1\">
           </div>
-          <br/>
-          <p> Connected to pump:",PumpStatus," </p> 
-          <div class=\"input-group input-group-lg\">
+          <br/>",
+          pumpstatus(PumpStatus)
+          ,"<div class=\"input-group input-group-lg\">
             <span class=\"input-group-addon\" id=\"sizing-addon1\">Limit</span>
             <input type=\"text\" class=\"form-control\" name=\"newlimit\" placeholder=",Limit," aria-describedby= \"sizing-addon1\">
           </div><br/>
