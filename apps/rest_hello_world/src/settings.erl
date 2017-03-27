@@ -262,7 +262,7 @@ pumpstatus(Pump) ->
         <<"No pump connected">> -> 
           ["<div class=\"alert alert-warning\" role=\"alert\">",Pump,"</div>"];
         _ ->
-          ["<div class=\"alert alert-success\" role=\"alert\"> Pump: ",Pump," is connected to this plant</div>"]
+          ["<div class=\"alert alert-success\" role=\"alert\"> Pump: <strong>",Pump,"</strong> is connected</div>"]
       end,
   io:format("Pumpstatus: ~p~n",[R]),
   R.
@@ -288,12 +288,12 @@ nav(),"
             <span class=\"input-group-addon\" id=\"sizing-addon1\">Name</span>
             <input type=\"text\" class=\"form-control\" name=\"newnode\" placeholder=\"",Name,"\" aria-describedby= \"sizing-addon1\">
           </div>
-          <br/>",
-          pumpstatus(PumpStatus)
-          ,"<div class=\"input-group input-group-lg\">
+          <br/><div class=\"input-group input-group-lg\">
             <span class=\"input-group-addon\" id=\"sizing-addon1\">Limit</span>
             <input type=\"text\" class=\"form-control\" name=\"newlimit\" placeholder=",Limit," aria-describedby= \"sizing-addon1\">
-          </div><br/>
+          </div><br/> ",
+          pumpstatus(PumpStatus)
+          ,"
           <div style=\"margin:1.5em 0 1.5em 0\">
             <button type=\"submit\" class=\"btn btn-primary btn-block\">Submit</button>
           </div>
