@@ -20,6 +20,7 @@
          start_pump/1,
          stop_pump/1,
          get_pump/1,
+         get_connected_pump/1,
          set_pump/2,
          get_data/1,
          get_pumpdata/1,
@@ -155,7 +156,7 @@ handle_call({remove_pumpnode,{PumpId,NodeId}}, _From, #state{nodes=Nodes,pumps=P
 handle_call({remove_node,NodeId}, _From, #state{nodes=Nodes,pumps=Pumps} = State) ->
   {NewNodes,Reply} = case lists:keyfind(NodeId,1,Nodes) of 
                        {_,Pid} -> 
-                         lists:map(fun({PumpPid,PumpId}) -> gen_server:call(PumpPid,{remove_node,NodeId}) end,Pumps),
+                         lists:map(fun({PumpId,PumpPid}) -> gen_server:call(PumpPid,{remove_node,NodeId}) end,Pumps),
                          Rep = gen_server:call(Pid,{terminate}),
                          N = lists:keydelete(NodeId,1,Nodes),
                          {N,Rep};
@@ -209,6 +210,15 @@ handle_call({get_pump,PumpId}, _From, #state{pumps=Pumps} = State) ->
               _     -> {ok,found}
           end,
   {reply, Reply, State};
+
+handle_call({get_connected_pump,NodeId}, _From, #state{nodes=Nodes} = State) ->
+  Reply = case lists:keyfind(NodeId,1,Nodes) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{get_pump});
+            false -> {error,no_such_node}
+          end,
+  {reply, Reply, State};
+
 
 
 handle_call({find_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
@@ -344,6 +354,7 @@ set_image(NodeId,Image) -> gen_server:call(?MODULE,{set_image,{NodeId,Image}}).
 get_image(NodeId) -> gen_server:call(?MODULE,{get_image,NodeId}).
 set_pump(NodeId,PumpId) -> gen_server:call(?MODULE,{set_pump,{NodeId,PumpId}}).
 get_pump(NodeId) -> gen_server:call(?MODULE,{get_pump,NodeId}).
+get_connected_pump(NodeId) -> gen_server:call(?MODULE,{get_connected_pump,NodeId}).
 remove_node(NodeId) -> gen_server:call(?MODULE,{remove_node,NodeId}).
 
 
