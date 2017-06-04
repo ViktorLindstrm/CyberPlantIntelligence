@@ -270,7 +270,7 @@ pumpstatus(Pump) ->
 body(Node,Name,Limit,Image) -> 
   PumpStatus = case plantsys_mng:get_pump(erlang:binary_to_atom(Node,utf8)) of 
                  {ok,undefined} -> 
-                   <<"No pump is connected">>;
+                   <<"No pump connected">>;
                  {ok,R} -> 
                    erlang:atom_to_list(R)
                end,

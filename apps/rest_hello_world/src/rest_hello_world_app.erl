@@ -14,6 +14,7 @@ start(_Type, _Args) ->
 	Dispatch = cowboy_router:compile([
 		{'_', [
 			{"/sensor/:id", toppage_handler, []},
+			{"/pump/:id", pump_handler, []},
 			{"/settings", settings, []},
       {"/", cowboy_static, {priv_file, rest_hello_world, "index.html"}},
       {"/node", cowboy_static, {priv_file, rest_hello_world, "get.html"}},

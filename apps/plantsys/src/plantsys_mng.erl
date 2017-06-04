@@ -202,11 +202,10 @@ handle_call({set_pump,{NodeId,PumpId}}, _From, #state{pumps=Pumps,nodes=Nodes} =
           end,
   {reply, Reply, State};
 
-handle_call({get_pump,NodeId}, _From, #state{nodes=Nodes} = State) ->
-  Reply = case lists:keyfind(NodeId,1,Nodes) of 
-            {_,Pid} -> 
-              gen_server:call(Pid,{get_pump});
-            false -> {error,no_such_node}
+handle_call({get_pump,PumpId}, _From, #state{pumps=Pumps} = State) ->
+  Reply = case lists:keyfind(PumpId,1,Pumps) of 
+              false -> {error,not_found};
+              _     -> {ok,found}
           end,
   {reply, Reply, State};
 
