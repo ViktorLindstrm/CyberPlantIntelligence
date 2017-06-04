@@ -152,9 +152,10 @@ handle_call({remove_pumpnode,{PumpId,NodeId}}, _From, #state{nodes=Nodes,pumps=P
           end,
   {reply, Reply, State};
 
-handle_call({remove_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
+handle_call({remove_node,NodeId}, _From, #state{nodes=Nodes,pumps=Pumps} = State) ->
   {NewNodes,Reply} = case lists:keyfind(NodeId,1,Nodes) of 
                        {_,Pid} -> 
+                         lists:map(fun({PumpPid,PumpId}) -> gen_server:call(PumpPid,{remove_node,NodeId}) end,Pumps),
                          Rep = gen_server:call(Pid,{terminate}),
                          N = lists:keydelete(NodeId,1,Nodes),
                          {N,Rep};
