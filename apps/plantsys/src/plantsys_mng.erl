@@ -17,8 +17,10 @@
          new_datapoint/2,
          remove_node/1,
          add_pump/1,
+         stop_pumptimer/1,
          start_pump/1,
          stop_pump/1,
+         start_pumptimer/3,
          get_pump/1,
          get_connected_pump/1,
          set_pump/2,
@@ -122,6 +124,24 @@ handle_call({stop_pump,PumpId}, _From, #state{pumps=Pumps} = State) ->
   Reply = case lists:keyfind(PumpId,1,Pumps) of 
             {_,Pid} -> 
               gen_server:call(Pid,{stop_pump});
+            false -> 
+              {error,no_such_pump}
+          end,
+  {reply, Reply, State};
+
+handle_call({start_pumptimer,{PumpId,WaitTime,RunTime}}, _From, #state{pumps=Pumps} = State) ->
+  Reply = case lists:keyfind(PumpId,1,Pumps) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{start_timer,{WaitTime,RunTime}});
+            false -> 
+              {error,no_such_pump}
+          end,
+  {reply, Reply, State};
+
+handle_call({stop_pumptimer,PumpId}, _From, #state{pumps=Pumps} = State) ->
+  Reply = case lists:keyfind(PumpId,1,Pumps) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{stop_timer});
             false -> 
               {error,no_such_pump}
           end,
@@ -364,6 +384,8 @@ add_pumpnode(PumpId,Node) -> gen_server:call(?MODULE,{add_pumpnode,{PumpId,Node}
 remove_pumpnode(PumpId,Node) -> gen_server:call(?MODULE,{remove_pumpnode,{PumpId,Node}}).
 start_pump(PumpId) -> gen_server:call(?MODULE,{start_pump,PumpId}).
 stop_pump(PumpId) -> gen_server:call(?MODULE,{stop_pump,PumpId}).
+start_pumptimer(PumpId,WaitTime,RunTime) -> gen_server:call(?MODULE,{start_pumptimer,{PumpId,WaitTime,RunTime}}).
+stop_pumptimer(PumpId) -> gen_server:call(?MODULE,{stop_pumptimer,PumpId}).
 
 add_pump(PumpId) -> 
   case whereis(websocket) of 

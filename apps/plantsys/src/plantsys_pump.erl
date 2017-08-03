@@ -23,7 +23,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {nodes=[],status=undefined,id,name}).
+-record(state, {nodes=[],status=undefined,timer=undefined,id,name}).
 
 %%%===================================================================
 %%% API
@@ -76,6 +76,25 @@ handle_call({get_current}, _From, #state{id = Id, name=Name,nodes=Nodes, status=
     Reply = {ok,Data},
     {reply, Reply, State};
 
+handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
+    {ok,cancel} = timer:cancel(Timer),
+    Reply = ok,
+    {reply, Reply, State};
+    
+
+handle_call({start_timer,{WaitTime,RunTime}}, _From, State) ->
+    io:format("Timer hit!~n"),
+    {ok,T} = timer:apply_after(WaitTime, gen_server, call, [self(),{start_timer,{WaitTime,RunTime}}]),
+    gen_server:cast(self(),{pump_timer,on,RunTime}),
+    NewState = State#state{timer=T},
+    Reply = ok,
+    {reply, Reply, NewState};
+
+handle_call({pump_timer}, _From, State) ->
+  io:format("Pumptimer"),
+    Reply = ok,
+    {reply, Reply, State};
+
 handle_call({add_node,{NodeId,_NodePid}}, _From, #state{nodes=Nodes} = State) ->
     NewNodes= [NodeId|Nodes],
     NewState = State#state{nodes=NewNodes},
@@ -126,6 +145,22 @@ handle_call({set_name,Name}, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({pump_timer,S,T}, #state{status=Status} = State) ->
+  io:format("Cast pump start, Status: ~p ~n",[Status]),
+  NewState = case S of
+                on when (Status == off) or (Status == undefined) ->
+                  io:format("Pumping~n"),
+                  timer:apply_after(T, gen_server, cast, [self(),{pump_timer,off,0}]),
+                  State#state{status=on};
+                off when Status == on -> 
+                  io:format("Turning pump off~n"),
+                  State#state{status=off};
+                _ -> 
+                  io:format("error: pump timer missmatch~n"),
+                  State
+              end,
+    {noreply, NewState};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
