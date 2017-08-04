@@ -52,7 +52,6 @@ send_update(Req,State) ->
   end,
   {ok,Status} = plantsys_mng:get_pumpdata(PumpId),
   JsonStatus = jiffy:encode(Status),
-  io:format("Status: ~p~nJson:~p~n",[Status,JsonStatus]),
   %Body = <<"{\"rest\": \"Hello World!\"}">>,
 	{JsonStatus, Req, State}.
 
