@@ -109,6 +109,7 @@ handle_call({remove_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
     {reply, Reply, NewState};
 
 handle_call({start_pump}, _From, #state{status=Status,nodes=Nodes} = State) ->
+  io:format("starting pumping"),
   {NewStatus, Reply} = case Status of
                          on ->
                            {Status,{error,pumping}};
@@ -119,6 +120,7 @@ handle_call({start_pump}, _From, #state{status=Status,nodes=Nodes} = State) ->
                            end
                        end,
   NewState = State#state{status=NewStatus},
+  io:format("start pumping done"),
   {reply, Reply, NewState};
 
 handle_call({stop_pump}, _From, #state{status=Status } = State) ->
@@ -150,12 +152,10 @@ handle_cast({pump_timer,S,T}, #state{status=Status} = State) ->
   io:format("Cast pump start, Status: ~p ~n",[Status]),
   NewState = case S of
                 on when (Status == off) or (Status == undefined) ->
-                  io:format("Pumping~n"),
-                  gen_server:call(self(),{start_pump}),
+                  spawn(gen_server,call,[self(),{start_pump}]),
                   timer:apply_after(T, gen_server, cast, [self(),{pump_timer,off,0}]),
                   State#state{status=on};
                 off when Status == on -> 
-                  io:format("Turning pump off~n"),
                   gen_server:call(self(),{stop_pump}),
                   State#state{status=off};
                 _ -> 
