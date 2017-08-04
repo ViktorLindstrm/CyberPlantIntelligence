@@ -19,18 +19,29 @@ init(Req0, Opts) ->
 
   {ok, Req, Opts}.
 
-pump_action({<<"add">>,Node},Pump) -> 
+pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttimer">>,Status}|_],Pump) -> 
+  PumpId = binary_to_atom(Pump,utf8),
+  case Status of
+    <<"on">> ->
+      plantsys_mng:stop_pumptimer(PumpId);
+    <<"off">> -> 
+      WTimerMin = erlang:binary_to_integer(WaitTimer)*1000*60,
+      RTimerSec = erlang:binary_to_integer(RunTimer)*1000,
+      plantsys_mng:start_pumptimer(PumpId,WTimerMin,RTimerSec)
+  end;
+
+pump_action([{<<"add">>,Node}|_],Pump) -> 
   NodeId = binary_to_atom(Node,utf8),
   PumpId = binary_to_atom(Pump,utf8),
   %plantsys_mng:add_pumpnode(PumpId,NodeId);
   plantsys_mng:set_pump(NodeId,PumpId);
 
-pump_action({<<"remove">>,Node},Pump) -> 
+pump_action([{<<"remove">>,Node}|_],Pump) -> 
   NodeId = binary_to_atom(Node,utf8),
   PumpId = binary_to_atom(Pump,utf8),
   plantsys_mng:remove_pumpnode(PumpId,NodeId);
 
-pump_action({<<"status">>,Current},Pump) -> 
+pump_action([{<<"status">>,Current}|_],Pump) -> 
   PumpId = binary_to_atom(Pump,utf8),
   case Current of
     <<"undefined">> -> 
@@ -43,7 +54,8 @@ pump_action({<<"status">>,Current},Pump) ->
 
 pump(<<"POST">>, Pump, Req0) ->
   {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
-  pump_action(hd(PostVals),Pump),
+  io:format("PostVals:~p",[PostVals]),
+  pump_action(PostVals,Pump),
   
   cowboy_req:reply(302, #{
     <<"Location">> => <<"/settings?pump=",Pump/binary>>
@@ -54,15 +66,16 @@ pump(<<"GET">>, Pump, Req0) ->
   {ok,PumpData} = plantsys_mng:get_pumpdata(PumpId),
   Connected = maps:get(nodes,PumpData),
   Status = maps:get(status,PumpData),
+  Timer = maps:get(timer,PumpData),
   Title = "Pump Settings",
-  Body = pump_body(Pump,Status,Connected), 
+  Body = pump_body(Pump,Status,Connected,Timer), 
   Head = head(),
   cowboy_req:reply(200, #{
     <<"content-type">> => <<"text/html">>
    }, ["<html><head><title>", Title, "</title>",Head,"</head>",
        "<body>",Body,"</body></html>"], Req0).
-
-pump_body(PumpId,Status,Connected) -> 
+   
+pump_body(PumpId,Status,Connected,Timer) -> 
   {ok,Nodes} = plantsys_mng:get_nodes(),
   NodeIds= lists:map(fun(X) -> 
                          {maps:get(id,X),list_to_atom(maps:get(name,X))} 
@@ -92,6 +105,22 @@ pump_body(PumpId,Status,Connected) ->
               off ->
                 "<button type=\"submit\" name=\"status\" value="++atom_to_list(Status)++" class=\"btn btn-success btn-lg\"> Water plant </button>"
             end,
+  TimerFileds = 
+  ["<div class=\"input-group \">
+    <span class=\"input-group-addon\" id=\"basic-addon1\">Timer Interval [min]</span>
+    <input type=\"text\" name=\"timerwait\" value=\""++integer_to_list(maps:get(tw,Timer) div (1000*60))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
+
+    <span class=\"input-group-addon\" id=\"basic-addon1\">Pump tim [sec]</span>
+    <input type=\"text\" name=\"timerrun\" value=\""++integer_to_list(maps:get(tr,Timer) div (1000))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
+    <span class=\"input-group-btn\">",
+   case maps:get(ts,Timer) of 
+      off -> 
+      "<button type=\"submit\" name=\"starttimer\" value=\"off\" class=\"btn btn-success\">Start timer</button>";
+      _ -> 
+      "<button type=\"submit\" name=\"starttimer\" value=\"on\" class=\"btn btn-danger\">Stop timer</button>"
+    end,
+    "</span>
+  </div>"],
   [
    nav(),"<div class=\"container-fluid\">",
    side(),
@@ -108,6 +137,9 @@ pump_body(PumpId,Status,Connected) ->
    "<p>Status: ",atom_to_list(Status),"</p>",
    "<form action=\"settings?pump=",PumpId,"\" method=\"post\" accept-charset=\"utf-8\">",
    WButton,
+   "</form>",
+   "<form action=\"settings?pump=",PumpId,"\" method=\"post\" accept-charset=\"utf-8\">",
+   TimerFileds,
    "</form>",
    "</div>"
   ].
@@ -189,7 +221,8 @@ echo(_, _, Req) ->
 	cowboy_req:reply(405, Req).
 
 head() -> 
-  ["<link href=\"static/css/bootstrap.min.css\" rel=\"stylesheet\"> <link href=\"static/dashboard.css\" rel=\"stylesheet\"> <script src=\"/static/jquery.min.js\"></script>"].
+  ["<link href=\"static/css/bootstrap.min.css\" rel=\"stylesheet\"> <link href=\"static/dashboard.css\" rel=\"stylesheet\"> <script src=\"/static/jquery.min.js\"></script>",
+   "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" ].
 
 head(DataPoints,Limit) -> 
   ["<link href=\"static/css/bootstrap.min.css\" rel=\"stylesheet\"> <link href=\"static/dashboard.css\" rel=\"stylesheet\"> <script src=\"/static/jquery.min.js\"></script>"

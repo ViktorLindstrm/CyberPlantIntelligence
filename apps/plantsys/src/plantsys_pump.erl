@@ -23,7 +23,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {nodes=[],status=undefined,timer=undefined,id,name}).
+-record(state, {nodes=[],status=undefined,timer,id,name}).
 
 %%%===================================================================
 %%% API
@@ -55,7 +55,7 @@ start_link(Id) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Id]) ->
-    {ok, #state{id=Id,name=atom_to_list(Id)}}.
+    {ok, #state{id=Id,name=atom_to_list(Id),timer=#{ts=>off,tw=>0,tr=>0}}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -71,22 +71,23 @@ init([Id]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({get_current}, _From, #state{id = Id, name=Name,nodes=Nodes, status=Status} = State) ->
-    Data = #{id => Id,name => Name, nodes => Nodes, status=>Status}, 
+handle_call({get_current}, _From, #state{id = Id, name=Name,nodes=Nodes, status=Status, timer=Timer} = State) ->
+    Data = #{id => Id,name => Name, nodes => Nodes, status=>Status, timer=>Timer}, 
     Reply = {ok,Data},
     {reply, Reply, State};
 
 handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
-    {ok,cancel} = timer:cancel(Timer),
+  %io:format("stop pump timer : ~p~n",[Timer]),
+    {ok,cancel} = timer:cancel(maps:get(ts,Timer)),
     Reply = ok,
-    {reply, Reply, State};
-    
+    NewState = State#state{timer=Timer#{ts:=off}},
+    {reply, Reply, NewState};
 
-handle_call({start_timer,{WaitTime,RunTime}}, _From, State) ->
+handle_call({start_timer,{WaitTime,RunTime}}, _From, #state{timer=Timer} = State) ->
     io:format("Timer hit!~n"),
     {ok,T} = timer:apply_after(WaitTime, gen_server, call, [self(),{start_timer,{WaitTime,RunTime}}]),
     gen_server:cast(self(),{pump_timer,on,RunTime}),
-    NewState = State#state{timer=T},
+    NewState = State#state{timer=Timer#{ts:=T,tw:=WaitTime,tr:=RunTime}},
     Reply = ok,
     {reply, Reply, NewState};
 
