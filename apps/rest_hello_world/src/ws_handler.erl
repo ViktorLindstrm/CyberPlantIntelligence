@@ -21,7 +21,11 @@ websocket_handle({text, <<"nodes">>}, State) ->
 websocket_handle({text, <<"pumps">>}, State) ->
   {ok,Pumps} = plantsys_mng:get_pumps(),
   io:format("Pumps: ~p~n",[Pumps]),
-  PumpsBin = jiffy:encode(Pumps),
+  PumpsU = lists:map(fun(X) -> 
+                         Timer = maps:get(timer,X),
+                         X#{timer:=Timer#{ts:=""}}
+                     end, Pumps),
+  PumpsBin = jiffy:encode(PumpsU),
 
 	{reply, {text, << "Pumps: ", PumpsBin/binary >>}, State};
 
