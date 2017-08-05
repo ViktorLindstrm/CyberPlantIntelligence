@@ -156,7 +156,7 @@ handle_cast({pump_timer,S,T}, #state{status=Status} = State) ->
                   timer:apply_after(T, gen_server, cast, [self(),{pump_timer,off,0}]),
                   State#state{status=on};
                 off when Status == on -> 
-                  gen_server:call(self(),{stop_pump}),
+                  spawn(gen_server,call,[self(),{stop_pump}]),
                   State#state{status=off};
                 _ -> 
                   io:format("error: pump timer missmatch~n"),
