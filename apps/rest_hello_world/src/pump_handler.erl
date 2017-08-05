@@ -51,7 +51,8 @@ send_update(Req,State) ->
       _ -> undefined
   end,
   {ok,Status} = plantsys_mng:get_pumpdata(PumpId),
-  JsonStatus = jiffy:encode(Status),
+  
+  JsonStatus = jiffy:encode(#{status => maps:get(status,Status)}),
   %Body = <<"{\"rest\": \"Hello World!\"}">>,
 	{JsonStatus, Req, State}.
 
