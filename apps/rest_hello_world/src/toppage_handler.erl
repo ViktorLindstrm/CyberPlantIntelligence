@@ -30,6 +30,7 @@ content_types_provided(Req, State) ->
 
 add_datapoint(Req,State) ->
   {ok, Data, Req2} = cowboy_req:read_body(Req, #{length => 1000000, period => 5000}),
+  io:format("Input datapoint: ~p~n",[Data]),
   NodeIdBin = cowboy_req:binding(id, Req2),
   NodeId = erlang:binary_to_atom(NodeIdBin,utf8),
   case plantsys_mng:find_node(NodeId) of 

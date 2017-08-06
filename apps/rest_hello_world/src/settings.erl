@@ -25,7 +25,7 @@ pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttime
     <<"on">> ->
       plantsys_mng:stop_pumptimer(PumpId);
     <<"off">> -> 
-      WTimerMin = erlang:binary_to_integer(WaitTimer)*1000*60,
+      WTimerMin = erlang:binary_to_integer(WaitTimer)*1000*60*60,
       RTimerSec = erlang:binary_to_integer(RunTimer)*1000,
       plantsys_mng:start_pumptimer(PumpId,WTimerMin,RTimerSec)
   end;
@@ -106,21 +106,26 @@ pump_body(PumpId,Status,Connected,Timer) ->
                 "<button type=\"submit\" name=\"status\" value="++atom_to_list(Status)++" class=\"btn btn-success btn-lg\"> Water plant </button>"
             end,
   TimerFileds = 
-  ["<div class=\"input-group \">
-    <span class=\"input-group-addon\" id=\"basic-addon1\">Timer Interval [min]</span>
-    <input type=\"text\" name=\"timerwait\" value=\""++integer_to_list(maps:get(tw,Timer) div (1000*60))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
-
-    <span class=\"input-group-addon\" id=\"basic-addon1\">Pump tim [sec]</span>
-    <input type=\"text\" name=\"timerrun\" value=\""++integer_to_list(maps:get(tr,Timer) div (1000))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
-    <span class=\"input-group-btn\">",
-   case maps:get(ts,Timer) of 
-      off -> 
-      "<button type=\"submit\" name=\"starttimer\" value=\"off\" class=\"btn btn-success\">Start timer</button>";
-      _ -> 
-      "<button type=\"submit\" name=\"starttimer\" value=\"on\" class=\"btn btn-danger\">Stop timer</button>"
-    end,
-    "</span>
-  </div>"],
+  [" <div class=\"col-sm-8\">
+      <div class=\"input-group \">
+        <label for=\"timewait\" class=\"col-sm-2 control-label\">Disabled</label>
+        <span class=\"input-group-addon\" id=\"basic-addon1\">hours [1-24]</span>
+        <input id=\"timewait\" type=\"number\" min=\"1\" max=\"24\" name=\"timerwait\" value=\""++integer_to_list(maps:get(tw,Timer) div (1000*60*60))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
+      </div>
+      <div class=\"input-group \">
+        <label for=\"timewait\" class=\"col-sm-2 control-label\">Disabled</label>
+        <span class=\"input-group-addon\" id=\"basic-addon1\">seconds [1-60]</span>
+        <input type=\"number\" min=\"1\" max=\"60\" name=\"timerrun\" value=\""++integer_to_list(maps:get(tr,Timer) div (1000))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
+      </div>
+        <span class=\"input-group-btn\">",
+       case maps:get(ts,Timer) of 
+          off -> 
+          "<button type=\"submit\" name=\"starttimer\" value=\"off\" class=\"btn btn-success\">Start timer</button>";
+          _ -> 
+          "<button type=\"submit\" name=\"starttimer\" value=\"on\" class=\"btn btn-danger\">Stop timer</button>"
+        end,
+        "</span> 
+     </div>" ],
   [
    nav(),"<div class=\"container-fluid\">",
    side(),
