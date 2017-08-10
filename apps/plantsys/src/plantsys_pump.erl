@@ -55,7 +55,7 @@ start_link(Id) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Id]) ->
-    {ok, #state{id=Id,name=atom_to_list(Id),timer=#{ts=>off,tw=>0,tr=>0}}}.
+    {ok, #state{id=Id,name=atom_to_list(Id),timer=#{ts=>off,tw=>0,tr=>0,next=>0}}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -84,10 +84,11 @@ handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
     {reply, Reply, NewState};
 
 handle_call({start_timer,{WaitTime,RunTime}}, _From, #state{timer=Timer} = State) ->
-    io:format("Timer hit!~n"),
+    io:format("Timer hit!-> ~p~n",[WaitTime]),
+    {Me,S,_Mi} = erlang:timestamp(),
     {ok,T} = timer:apply_after(WaitTime, gen_server, call, [self(),{start_timer,{WaitTime,RunTime}}]),
     gen_server:cast(self(),{pump_timer,on,RunTime}),
-    NewState = State#state{timer=Timer#{ts:=T,tw:=WaitTime,tr:=RunTime}},
+    NewState = State#state{timer=Timer#{ts:=T,tw:=WaitTime,tr:=RunTime,next:=Me*1000000+S+(WaitTime div 1000)}},
     Reply = ok,
     {reply, Reply, NewState};
 

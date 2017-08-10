@@ -105,15 +105,21 @@ pump_body(PumpId,Status,Connected,Timer) ->
               off ->
                 "<button type=\"submit\" name=\"status\" value="++atom_to_list(Status)++" class=\"btn btn-success btn-lg\"> Water plant </button>"
             end,
+  TimerNext = "<script>
+  if("++integer_to_list(maps:get(next,Timer))++"!=0){
+    var d = new Date("++integer_to_list(maps:get(next,Timer)*1000)++");
+    document.write(d.toString());
+  }
+  </script>",
   TimerFileds = 
   [" <div class=\"col-sm-8\">
       <div class=\"input-group \">
-        <label for=\"timewait\" class=\"col-sm-2 control-label\">Disabled</label>
+        <label for=\"timewait\" class=\"col-sm-2 control-label\">Timer interval</label>
         <span class=\"input-group-addon\" id=\"basic-addon1\">hours [1-24]</span>
         <input id=\"timewait\" type=\"number\" min=\"1\" max=\"24\" name=\"timerwait\" value=\""++integer_to_list(maps:get(tw,Timer) div (1000*60*60))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
       </div>
       <div class=\"input-group \">
-        <label for=\"timewait\" class=\"col-sm-2 control-label\">Disabled</label>
+        <label for=\"timewait\" class=\"col-sm-2 control-label\">Pump time</label>
         <span class=\"input-group-addon\" id=\"basic-addon1\">seconds [1-60]</span>
         <input type=\"number\" min=\"1\" max=\"60\" name=\"timerrun\" value=\""++integer_to_list(maps:get(tr,Timer) div (1000))++"\" class=\"form-control\" placeholder=\"min\" aria-describedby=\"basic-addon1\">
       </div>
@@ -143,6 +149,8 @@ pump_body(PumpId,Status,Connected,Timer) ->
    "<form action=\"settings?pump=",PumpId,"\" method=\"post\" accept-charset=\"utf-8\">",
    WButton,
    "</form>",
+   
+   "<span id=\"next_timer\">"++TimerNext++"</span>",
    "<form action=\"settings?pump=",PumpId,"\" method=\"post\" accept-charset=\"utf-8\">",
    TimerFileds,
    "</form>",
