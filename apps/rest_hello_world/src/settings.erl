@@ -108,7 +108,7 @@ pump_body(PumpId,Status,Connected,Timer) ->
   TimerNext = "<script>
   if("++integer_to_list(maps:get(next,Timer))++"!=0){
     var d = new Date("++integer_to_list(maps:get(next,Timer)*1000)++");
-    document.write(d.toString());
+    document.write(\"Pump next time:\"+d.toString());
   }
   </script>",
   TimerFileds = 

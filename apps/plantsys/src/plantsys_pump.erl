@@ -80,7 +80,7 @@ handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
   %io:format("stop pump timer : ~p~n",[Timer]),
     {ok,cancel} = timer:cancel(maps:get(ts,Timer)),
     Reply = ok,
-    NewState = State#state{timer=Timer#{ts:=off}},
+    NewState = State#state{timer=Timer#{ts:=off,next:=0}},
     {reply, Reply, NewState};
 
 handle_call({start_timer,{WaitTime,RunTime}}, _From, #state{timer=Timer} = State) ->
