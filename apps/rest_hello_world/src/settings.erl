@@ -33,7 +33,6 @@ pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttime
 pump_action([{<<"add">>,Node}|_],Pump) -> 
   NodeId = binary_to_atom(Node,utf8),
   PumpId = binary_to_atom(Pump,utf8),
-  %plantsys_mng:add_pumpnode(PumpId,NodeId);
   plantsys_mng:set_pump(NodeId,PumpId);
 
 pump_action([{<<"remove">>,Node}|_],Pump) -> 
@@ -211,13 +210,14 @@ sensor(<<"GET">>, Node, Req0) ->
                   {error,_ } -> "nothing";
                   {ok,Settings} ->  Limit = maps:get(limit,Settings),
                                     Name = maps:get(name,Settings),
+                                    Last = maps:get(last_water,Settings),
                                     case Limit of 
                                       undefined -> 
-                                        B = body(Node,Name,"\"no limit set\"",Image),
+                                        B = body({Node,Last},Name,"\"no limit set\"",Image),
                                         H = head(io_lib:format("~w",[Data]),<<"0">>),
                                         {H,B};
                                       L -> 
-                                        B = body(Node,Name,integer_to_list(L),Image),
+                                        B = body({Node,Last},Name,integer_to_list(L),Image),
                                         H = head(io_lib:format("~w",[Data]),erlang:integer_to_binary(Limit)),
                                         {H,B}
                                     end
@@ -303,17 +303,28 @@ image(Image) ->
               end,
   ImageData.
 
-pumpstatus(Pump) ->
+pumpstatus(Pump,Last) ->
   R = case Pump of
         <<"No pump connected">> -> 
           ["<div class=\"alert alert-warning\" role=\"alert\">",Pump,"</div>"];
         _ ->
-          ["<div class=\"alert alert-success\" role=\"alert\"> Pump: <strong>",Pump,"</strong> is connected</div>"]
+          case Last of 
+            undefined -> 
+              ["<div class=\"alert alert-success\" role=\"alert\"> Pump: <strong>",Pump,"</strong> is connected</div>"];
+            #{time:=LastW} -> 
+
+              TimerNext = "<script>
+                var d = new Date("++integer_to_list(LastW*1000)++");
+                document.write(d.toString());
+              </script>",
+              ["<div class=\"alert alert-success\" role=\"alert\"> Pump: <strong>",Pump,"</strong> is connected, last watered ",TimerNext,"</div>"]
+
+          end
       end,
   io:format("Pumpstatus: ~p~n",[R]),
   R.
 
-body(Node,Name,Limit,Image) -> 
+body({Node,Last},Name,Limit,Image) -> 
   PumpStatus = case plantsys_mng:get_connected_pump(erlang:binary_to_atom(Node,utf8)) of 
                  {ok,undefined} -> 
                    <<"No pump connected">>;
@@ -338,7 +349,7 @@ nav(),"
             <span class=\"input-group-addon\" id=\"sizing-addon1\">Limit</span>
             <input type=\"text\" class=\"form-control\" name=\"newlimit\" placeholder=",Limit," aria-describedby= \"sizing-addon1\">
           </div><br/> ",
-          pumpstatus(PumpStatus)
+          pumpstatus(PumpStatus,Last)
           ,"
           <div style=\"margin:1.5em 0 1.5em 0\">
             <button type=\"submit\" class=\"btn btn-primary btn-block\">Submit</button>

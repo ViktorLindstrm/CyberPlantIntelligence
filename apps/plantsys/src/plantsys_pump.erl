@@ -72,7 +72,8 @@ init([Id]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({get_current}, _From, #state{id = Id, name=Name,nodes=Nodes, status=Status, timer=Timer} = State) ->
-    Data = #{id => Id,name => Name, nodes => Nodes, status=>Status, timer=>Timer}, 
+    NodeIds = lists:map(fun({NodeId,_}) -> NodeId end,Nodes),
+    Data = #{id => Id,name => Name, nodes => NodeIds, status=>Status, timer=>Timer}, 
     Reply = {ok,Data},
     {reply, Reply, State};
 
@@ -83,7 +84,7 @@ handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
     NewState = State#state{timer=Timer#{ts:=off,next:=0}},
     {reply, Reply, NewState};
 
-handle_call({start_timer,{WaitTime,RunTime}}, _From, #state{timer=Timer} = State) ->
+handle_call({start_timer,{WaitTime,RunTime}}, _From, #state{id=Id,nodes=Nodes,timer=Timer} = State) ->
     io:format("Timer hit!-> ~p~n",[WaitTime]),
     {Me,S,_Mi} = erlang:timestamp(),
     {ok,T} = timer:apply_after(WaitTime, gen_server, call, [self(),{start_timer,{WaitTime,RunTime}}]),
@@ -97,20 +98,24 @@ handle_call({pump_timer}, _From, State) ->
     Reply = ok,
     {reply, Reply, State};
 
-handle_call({add_node,{NodeId,_NodePid}}, _From, #state{nodes=Nodes} = State) ->
+handle_call({add_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
     NewNodes= [NodeId|Nodes],
     NewState = State#state{nodes=NewNodes},
     Reply = ok,
     {reply, Reply, NewState};
 
 handle_call({remove_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
-    NewNodes = remove_node(NodeId,Nodes,[]),
+    NewNodes = lists:keydelete(NodeId,1,Nodes),
     NewState = State#state{nodes=NewNodes},
     Reply = ok,
     {reply, Reply, NewState};
 
-handle_call({start_pump}, _From, #state{status=Status,nodes=Nodes} = State) ->
+handle_call({start_pump}, _From, #state{id=Id,status=Status,nodes=Nodes} = State) ->
   io:format("starting pumping"),
+  lists:map(fun({_NodeId,NodePid}) -> 
+              gen_server:call(NodePid,{last_water,Id})
+            end,
+            Nodes),
   {NewStatus, Reply} = case Status of
                          on ->
                            {Status,{error,pumping}};

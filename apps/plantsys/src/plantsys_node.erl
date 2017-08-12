@@ -25,7 +25,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {image=undefined,type=sensor,pump=undefined,users=[],limit = undefined, current = [], data=[],id,name}).
+-record(state, {image=undefined,type=sensor,pump=undefined,users=[],limit = undefined,last_water=undefined,current = [], data=[],id,name}).
 
 %%%===================================================================
 %%% API
@@ -85,6 +85,14 @@ handle_call({set_pump,PumpId}, _From, State) ->
   Reply = ok,
   {reply, Reply, NewState};
 
+handle_call({last_water,PumpId}, _From, State) ->
+  {M,S,_} = erlang:timestamp(),
+   Now = M*1000000+S,
+  Last_pump = #{pump=>PumpId,time=>Now},
+  NewState = State#state{pump=PumpId,last_water=Last_pump},
+  Reply = ok,
+  {reply, Reply, NewState};
+
 handle_call({get_pump}, _From, #state{pump=Pump} = State) ->
   Reply = {ok,Pump},
   {reply, Reply, State};
@@ -109,8 +117,8 @@ handle_call({set_type,Type}, _From, State) ->
   Reply = ok,
   {reply, Reply, NewState};
 
-handle_call({get_current}, _From, #state{id = Id,type=Type, name=Name,limit=Limit, current=Current} = State) ->
-  Data = #{id => Id,name => Name, type => Type, current => Current,limit => Limit}, 
+handle_call({get_current}, _From, #state{last_water=Last,id = Id,type=Type, name=Name,limit=Limit, current=Current} = State) ->
+  Data = #{id => Id,last_water => Last, name => Name, type => Type, current => Current,limit => Limit}, 
   Reply = {ok,Data},
   {reply, Reply, State};
 
