@@ -14,6 +14,11 @@
 -export([start_link/0]).
 
 -export([add_node/1,
+         add_leds/1,
+         get_ledsalarm/1,
+         get_leds/1,
+         set_ledscolor/4,
+         get_ledscolor/1,
          new_datapoint/2,
          remove_node/1,
          add_pump/1,
@@ -24,6 +29,7 @@
          get_pump/1,
          get_connected_pump/1,
          set_pump/2,
+         set_leds/2,
          get_data/1,
          get_pumpdata/1,
          get_settings/1,
@@ -49,7 +55,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {nodes=[],pumps=[]}).
+-record(state, {nodes=[],pumps=[],leds=[]}).
 
 %%%===================================================================
 %%% API
@@ -105,6 +111,12 @@ handle_call({add_pump,PumpId}, _From, #state{pumps=Pumps} = State) ->
   Reply = ok,
   {reply, Reply, NewState};
 
+handle_call({add_leds,LedsId}, _From, #state{leds=Leds} = State) ->
+  {ok, LedsPid} = plantsys_ledssup:start_child(LedsId),
+  NewState = State#state{leds=[{LedsId,LedsPid}|Leds]},
+  Reply = ok,
+  {reply, Reply, NewState};
+
 handle_call({add_node,NodeId}, _From, #state{nodes=Nodes} = State) ->
   {ok, NodePid} = plantsys_nodesup:start_child(NodeId),
   NewState = State#state{nodes=[{NodeId,NodePid}|Nodes]},
@@ -129,6 +141,33 @@ handle_call({stop_pump,PumpId}, _From, #state{pumps=Pumps} = State) ->
           end,
   {reply, Reply, State};
 
+handle_call({set_ledscolor,{LedsId,{R,G,B}}}, _From, #state{leds=Leds} = State) ->
+  Reply = case lists:keyfind(LedsId,1,Leds) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{set_color,{R,G,B}});
+            false -> 
+              {error,no_such_leds}
+          end,
+  {reply, Reply, State};
+
+handle_call({get_ledsalarm,LedsId}, _From, #state{leds=Leds} = State) ->
+  Reply = case lists:keyfind(LedsId,1,Leds) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{get_alarm});
+            false -> 
+              {error,no_such_leds}
+          end,
+  {reply, Reply, State};
+
+handle_call({get_ledscolor,LedsId}, _From, #state{leds=Leds} = State) ->
+  Reply = case lists:keyfind(LedsId,1,Leds) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{get_color});
+            false -> 
+              {error,no_such_leds}
+          end,
+  {reply, Reply, State};
+
 handle_call({start_pumptimer,{PumpId,WaitTime,RunTime}}, _From, #state{pumps=Pumps} = State) ->
   Reply = case lists:keyfind(PumpId,1,Pumps) of 
             {_,Pid} -> 
@@ -150,6 +189,7 @@ handle_call({stop_pumptimer,PumpId}, _From, #state{pumps=Pumps} = State) ->
 handle_call({add_data,{NodeId,Data}}, _From, #state{nodes=Nodes} = State) ->
   Reply = case lists:keyfind(NodeId,1,Nodes) of 
             {_,Pid} -> 
+              io:format("Data: ~p~n",[Data]),
               gen_server:call(Pid,{add_data,Data}),
               ok;
             false -> 
@@ -224,8 +264,31 @@ handle_call({set_pump,{NodeId,PumpId}}, _From, #state{pumps=Pumps,nodes=Nodes} =
           end,
   {reply, Reply, State};
 
+
+handle_call({set_leds,{NodeId,LedsId}}, _From, #state{leds=Leds,nodes=Nodes} = State) ->
+  Reply = case lists:keyfind(NodeId,1,Nodes) of 
+            {_,NodePid} -> 
+              case lists:keyfind(LedsId,1,Leds) of 
+                {_,LedsPid} ->  
+                  gen_server:call(NodePid,{set_leds,{LedsId,LedsPid}}),
+                  gen_server:call(LedsPid,{add_node,{NodeId,NodePid}});
+                false -> 
+                  {error_no_such_leds}
+              end;
+            false -> {error,no_such_node}
+          end,
+  {reply, Reply, State};
+
+
 handle_call({get_pump,PumpId}, _From, #state{pumps=Pumps} = State) ->
   Reply = case lists:keyfind(PumpId,1,Pumps) of 
+              false -> {error,not_found};
+              _     -> {ok,found}
+          end,
+  {reply, Reply, State};
+
+handle_call({get_leds,LedsId}, _From, #state{leds=Leds} = State) ->
+  Reply = case lists:keyfind(LedsId,1,Leds) of 
               false -> {error,not_found};
               _     -> {ok,found}
           end,
@@ -262,6 +325,14 @@ handle_call({get_pumps}, _From, #state{pumps=Pumps} = State) ->
                            PumpData
                        end, Pumps),
   Reply = {ok, PumpsIds},
+  {reply, Reply, State};
+
+handle_call({get_leds}, _From, #state{leds=Leds} = State) ->
+  LedsIds = lists:map(fun({_,Pid}) ->
+                           {ok,LedsData} = gen_server:call(Pid,{get_color}),
+                           LedsData
+                       end, Leds),
+  Reply = {ok, LedsIds},
   {reply, Reply, State};
 
 handle_call({get_pumpdata,PumpId}, _From, #state{pumps=Pumps} = State) ->
@@ -354,12 +425,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 
-add_node(NodeId) -> 
-  case whereis(websocket) of 
-    undefined -> undefined;
-    Pid -> Pid ! {new_node}
-  end,
-  gen_server:call(?MODULE,{add_node,NodeId}).
 
 
 new_datapoint(NodeId,Data) -> gen_server:call(?MODULE,{add_data,{NodeId,Data}}).
@@ -374,6 +439,9 @@ set_image(NodeId,Image) -> gen_server:call(?MODULE,{set_image,{NodeId,Image}}).
 get_image(NodeId) -> gen_server:call(?MODULE,{get_image,NodeId}).
 set_pump(NodeId,PumpId) -> gen_server:call(?MODULE,{set_pump,{NodeId,PumpId}}).
 get_pump(NodeId) -> gen_server:call(?MODULE,{get_pump,NodeId}).
+
+set_leds(NodeId,LedsId) -> gen_server:call(?MODULE,{set_leds,{NodeId,LedsId}}).
+
 get_connected_pump(NodeId) -> gen_server:call(?MODULE,{get_connected_pump,NodeId}).
 remove_node(NodeId) -> gen_server:call(?MODULE,{remove_node,NodeId}).
 
@@ -387,9 +455,29 @@ stop_pump(PumpId) -> gen_server:call(?MODULE,{stop_pump,PumpId}).
 start_pumptimer(PumpId,WaitTime,RunTime) -> gen_server:call(?MODULE,{start_pumptimer,{PumpId,WaitTime,RunTime}}).
 stop_pumptimer(PumpId) -> gen_server:call(?MODULE,{stop_pumptimer,PumpId}).
 
+get_ledscolor(LedsId) -> gen_server:call(?MODULE,{get_ledscolor,LedsId}).
+set_ledscolor(LedsId,R,G,B) -> gen_server:call(?MODULE,{set_ledscolor,{LedsId,{R,G,B}}}).
+get_leds(LedsId) -> gen_server:call(?MODULE,{get_leds,LedsId}).
+get_ledsalarm(LedsId)  -> gen_server:call(?MODULE,{get_ledsalarm,LedsId}).
+
 add_pump(PumpId) -> 
   case whereis(websocket) of 
     undefined -> undefined;
     Pid -> Pid ! {new_pump}
   end,
   gen_server:call(?MODULE,{add_pump,PumpId}).
+
+add_leds(LedsId) -> 
+  case whereis(websocket) of 
+    undefined -> undefined;
+    Pid -> Pid ! {new_leds}
+  end,
+  gen_server:call(?MODULE,{add_leds,LedsId}).
+
+add_node(NodeId) -> 
+  case whereis(websocket) of 
+    undefined -> undefined;
+    Pid -> Pid ! {new_node}
+  end,
+  gen_server:call(?MODULE,{add_node,NodeId}).
+

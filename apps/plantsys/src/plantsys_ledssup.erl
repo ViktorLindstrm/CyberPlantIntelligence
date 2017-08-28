@@ -4,14 +4,15 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created : 2016-12-31 00:21:18.345253
+%%% Created : 2016-12-31 00:30:28.090271
 %%%-------------------------------------------------------------------
--module(plantsys_sup).
-
+-module(plantsys_ledssup).
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/0,
+        start_child/1]).
+
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -32,6 +33,8 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
+start_child(Id) ->
+  supervisor:start_child(?SERVER, [Id]).
 %%%===================================================================
 %%% Supervisor callbacks
 %%%===================================================================
@@ -50,33 +53,21 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    RestartStrategy = one_for_one,
-    MaxRestarts = 1000,
-    MaxSecondsBetweenRestarts = 3600,
+    RestartStrategy = simple_one_for_one,
+    MaxRestarts = 0,
+    MaxSecondsBetweenRestarts = 1,
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    Restart = permanent,
-    Shutdown = 2000,
+    Restart = temporary,
+    Shutdown = brutal_kill,
     Type = worker,
+    Module = 'plantsys_leds',
 
-    AChild = {'plantsys_mng', {'plantsys_mng', start_link, []},
-              Restart, Shutdown, Type, ['plantsys_mng']},
+    AChild = {Module, {Module, start_link, []},
+              Restart, Shutdown, Type, [Module]},
 
-    BChild = {'plantsys_nodesup', {'plantsys_nodesup', start_link, []},
-              Restart, Shutdown, supervisor, ['plantsys_nodesup']},
-
-    Leds = 'plantsys_ledssup',
-    LedsSup = {Leds, {Leds, start_link, []},
-              Restart, Shutdown, supervisor, [Leds]},
-
-    %UsrMngr = {'plantsys_usrmng', {'plantsys_usrmng', start_link, []},
-              %Restart, Shutdown, Type, ['plantsys_usrmng']},
-
-    PumpSup = {'plantsys_pumpsup', {'plantsys_pumpsup', start_link, []},
-              Restart, Shutdown, supervisor, ['plantsys_pumpsup']},
-
-    {ok, {SupFlags, [AChild,BChild,PumpSup,LedsSup]}}.
+    {ok, {SupFlags, [AChild]}}.
 
 %%%===================================================================
 %%% Internal functions

@@ -4,19 +4,17 @@
 
 init(Req0, Opts) ->
 	Method = cowboy_req:method(Req0),
-	#{node := Node,pump:=Pump} = cowboy_req:match_qs([{node, [], undefined},{pump, [], undefined}], Req0),
-  Req = case Node of
-          undefined -> 
-            case Pump of 
-              undefined -> 
-                echo(Method,undefined,Req0);
-              _ -> 
-                pump(Method, Pump, Req0)
-            end;
-          _-> 
-            sensor(Method, Node, Req0)
+	#{node := Node,pump:=Pump,leds:=Leds} = cowboy_req:match_qs([{node, [], undefined},{pump, [], undefined},{leds, [], undefined}], Req0),
+  Req = case {Node,Pump,Leds} of
+          {undefined,undefined,undefined} -> 
+            echo(Method,undefined,Req0);
+          {undefined,_Pump,undefined} -> 
+            pump(Method, Pump, Req0);
+          {_Node,undefined,undefined} -> 
+            sensor(Method, Node, Req0);
+          {undefined,undefined,Leds} -> 
+            leds(Method,Leds,Req0)
         end,
-
   {ok, Req, Opts}.
 
 pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttimer">>,Status}|_],Pump) -> 
@@ -374,3 +372,48 @@ nav(),"
 
 plot() -> 
   [ "<div id=\"flot-placeholder\" style=\"width:100%;height:400px\"></div>"].
+
+leds(<<"POST">>, Leds, Req0) ->
+  LedsId = erlang:binary_to_atom(Leds,utf8),
+  {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
+  %io:format("PostVals:~p",[PostVals]),
+  [{<<"r">>,R}, {<<"g">>,G}, {<<"b">>,B}] = PostVals,
+  plantsys_mng:set_ledscolor(LedsId,binary_to_integer(R),binary_to_integer(G),binary_to_integer(B)),
+  
+  cowboy_req:reply(302, #{
+    <<"Location">> => <<"/settings?leds=",Leds/binary>>
+   }, Req);
+
+
+leds(<<"GET">>, Leds, Req0) ->
+  LedsId = erlang:binary_to_atom(Leds,utf8),
+  {ok,Color} = plantsys_mng:get_ledscolor(LedsId),
+  Title = "Light color",
+  Body = leds_body(Leds,Color), 
+  Head = head(),
+  cowboy_req:reply(200, #{
+    <<"content-type">> => <<"text/html">>
+   }, ["<html><head><title>", Title, "</title>",Head,"</head>",
+       "<body>",Body,"</body></html>"], Req0).
+
+
+
+leds_body(Leds,Color) -> 
+  R =integer_to_list(maps:get(r,Color)),
+  G =integer_to_list(maps:get(g,Color)),
+  B =integer_to_list(maps:get(b,Color)),
+  [
+   nav(),"<div class=\"container-fluid\">",
+   side(),
+   "<div class=\"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main\">
+          <h1 class=\"page-header\">Settings ",Leds,"</h1>
+      <div class=\"row placeholders\" id=\"settings\">
+<form action=\"settings?leds=",Leds,"\" method=\"post\" accept-charset=\"utf-8\">
+     R: <input type=\"text\" name=\"r\", value="++R++"><br>
+     G: <input type=\"text\" name=\"g\", value="++G++"><br>
+     B: <input type=\"text\" name=\"b\", value="++B++"><br>
+    <button type=\"submit\" class=\"btn btn-success\">Set Color</button>
+   </form>
+   </div>"
+  ].
+
