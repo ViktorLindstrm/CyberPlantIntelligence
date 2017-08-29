@@ -19,6 +19,7 @@
          get_leds/1,
          set_ledscolor/4,
          get_ledscolor/1,
+         set_ledstimer/5,
          new_datapoint/2,
          remove_node/1,
          add_pump/1,
@@ -149,6 +150,25 @@ handle_call({set_ledscolor,{LedsId,{R,G,B}}}, _From, #state{leds=Leds} = State) 
               {error,no_such_leds}
           end,
   {reply, Reply, State};
+
+handle_call({set_ledstimer,LedsId,{SH,SM},{EH,EM}}, _From, #state{leds=Leds} = State) ->
+  Reply = case lists:keyfind(LedsId,1,Leds) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{set_timer,{SH,SM},{EH,EM}});
+            false -> 
+              {error,no_such_leds}
+          end,
+  {reply, Reply, State};
+
+handle_call({stop_ledstimer,LedsId}, _From, #state{leds=Leds} = State) ->
+  Reply = case lists:keyfind(LedsId,1,Leds) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{stop_timer});
+            false -> 
+              {error,no_such_leds}
+          end,
+  {reply, Reply, State};
+
 
 handle_call({get_ledsalarm,LedsId}, _From, #state{leds=Leds} = State) ->
   Reply = case lists:keyfind(LedsId,1,Leds) of 
@@ -459,6 +479,8 @@ get_ledscolor(LedsId) -> gen_server:call(?MODULE,{get_ledscolor,LedsId}).
 set_ledscolor(LedsId,R,G,B) -> gen_server:call(?MODULE,{set_ledscolor,{LedsId,{R,G,B}}}).
 get_leds(LedsId) -> gen_server:call(?MODULE,{get_leds,LedsId}).
 get_ledsalarm(LedsId)  -> gen_server:call(?MODULE,{get_ledsalarm,LedsId}).
+set_ledstimer(LedsId,SH,SM,EH,EM) -> gen_server:call(?MODULE,{set_ledstimer,LedsId,{SH,SM},{EH,EM}}).
+stop_ledstimer(LedsId) -> gen_server:call(?MODULE,{stop_ledstimer,LedsId}).
 
 add_pump(PumpId) -> 
   case whereis(websocket) of 

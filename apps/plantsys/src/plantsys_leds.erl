@@ -23,7 +23,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {nodes=[],pumps=[],color=#{r=>0,g=>0,b=>0},alarm=false,id,name}).
+-record(state, {nodes=[],pumps=[],color=#{r=>0,g=>0,b=>0},alarm=false,id,name,timer=undefined}).
 
 %%%===================================================================
 %%% API
@@ -72,14 +72,54 @@ init([Id]) ->
 %% @end
 %%--------------------------------------------------------------------
 
+handle_call({set_timer,{SH,SM},{EH,EM}}, _From, State) ->
+    {_Date,{H,M,_}} = calendar:local_time(),
+    Mins = case {H<SH,M<SM} of 
+             {true,_} -> 
+               (SH-H)*60+SM-M ;
+             {false,_} -> 
+               case H==SH of 
+                 true -> 
+                   SM-M;
+                 false -> 
+                   (24-(SH-H))*60+SM-M
+               end
+           end,
+    Millis = Mins*60*1000,
+    Timer = timer:apply_after(Millis,gen_server,call,[self(),{start_timer,{EH-SH,EM-SM}}]),
+    NewState = State#state{timer=Timer},
+    Reply = ok,
+    {reply, Reply, NewState};
+
+handle_call({start_timer,{H,M}}, _From, #state{color=Color} = State) ->
+    OnAgain = H*24+M*60*1000,
+    timer:apply_after(OnAgain,gen_server,call,[self(),{set_color,{maps:get(r,Color),maps:get(g,Color),maps:get(b,Color)}}]),
+    spawn(gen_server,call,[self(),{set_color,{0,0,0}}]), 
+    Millis = 24*60*60*1000,
+
+    Timer = timer:apply_after(Millis,gen_server,call,[self(),{start_timer,{H,M}}]),
+    NewState = State#state{timer=Timer},
+    Reply = ok,
+    {reply, Reply, NewState};
+
+handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
+  Reply = case Timer of 
+            undefined -> 
+              {ok,no_timer_set};
+            _ -> 
+              timer:cancel(Timer)
+          end,
+  {reply, Reply, State};
+
+handle_call({get_color}, _From, #state{color=Color} = State) ->
+    Reply = {ok,Color},
+    {reply, Reply, State};
+
 handle_call({set_color,{R,G,B}}, _From, State) ->
     NewState= State#state{color=#{r=>R,g=>G,b=>B}},
     Reply = ok,
     {reply, Reply, NewState};
 
-handle_call({get_color}, _From, #state{color=Color} = State) ->
-    Reply = {ok,Color},
-    {reply, Reply, State};
 
 handle_call({add_node,{_NodeId,_NodePid} = NodeIdPid}, _From, #state{nodes=Nodes} = State) ->
     NewNodes= [NodeIdPid|Nodes],

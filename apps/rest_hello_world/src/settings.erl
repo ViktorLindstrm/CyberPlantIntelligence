@@ -377,8 +377,12 @@ leds(<<"POST">>, Leds, Req0) ->
   LedsId = erlang:binary_to_atom(Leds,utf8),
   {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
   %io:format("PostVals:~p",[PostVals]),
-  [{<<"r">>,R}, {<<"g">>,G}, {<<"b">>,B}] = PostVals,
-  plantsys_mng:set_ledscolor(LedsId,binary_to_integer(R),binary_to_integer(G),binary_to_integer(B)),
+  case PostVals of 
+    [{<<"sh">>,SH}, {<<"sm">>,SM}, {<<"eh">>,EH}, {<<"em">>,EM}] ->
+      plantsys_mng:set_ledstimer(LedsId,binary_to_integer(SH),binary_to_integer(SM),binary_to_integer(EH),binary_to_integer(EM));
+    [{<<"r">>,R}, {<<"g">>,G}, {<<"b">>,B}] -> 
+      plantsys_mng:set_ledscolor(LedsId,binary_to_integer(R),binary_to_integer(G),binary_to_integer(B))
+  end,
   
   cowboy_req:reply(302, #{
     <<"Location">> => <<"/settings?leds=",Leds/binary>>
@@ -408,10 +412,20 @@ leds_body(Leds,Color) ->
    "<div class=\"col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main\">
           <h1 class=\"page-header\">Settings ",Leds,"</h1>
       <div class=\"row placeholders\" id=\"settings\">
-<form action=\"settings?leds=",Leds,"\" method=\"post\" accept-charset=\"utf-8\">
+    <form action=\"settings?leds=",Leds,"\" method=\"post\" accept-charset=\"utf-8\">
      R: <input type=\"text\" name=\"r\", value="++R++"><br>
      G: <input type=\"text\" name=\"g\", value="++G++"><br>
      B: <input type=\"text\" name=\"b\", value="++B++"><br>
+    <button type=\"submit\" class=\"btn btn-success\">Set Color</button>
+   </form>
+   <h1>timer</h1>
+    <form action=\"settings?leds=",Leds,"\" method=\"post\" accept-charset=\"utf-8\">
+    <h2>Start sleep</h2>
+     <input type=\"text\" name=\"sh\", value=0><br>
+     <input type=\"text\" name=\"sm\", value=0><br>
+    <h2>Stop sleep</h2>
+     <input type=\"text\" name=\"eh\", value=0><br>
+     <input type=\"text\" name=\"em\", value=0><br>
     <button type=\"submit\" class=\"btn btn-success\">Set Color</button>
    </form>
    </div>"
