@@ -23,7 +23,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {nodes=[],pumps=[],color=#{r=>0,g=>0,b=>0},alarm=false,id,name,timer=undefined}).
+-record(state, {nodes=[],pumps=[],color=#{r=>0,g=>0,b=>0},silence=off,alarm=false,id,name,timer=undefined}).
 
 %%%===================================================================
 %%% API
@@ -72,44 +72,70 @@ init([Id]) ->
 %% @end
 %%--------------------------------------------------------------------
 
-handle_call({set_timer,{SH,SM},{EH,EM}}, _From, State) ->
-    {_Date,{H,M,_}} = calendar:local_time(),
-    Mins = case {H<SH,M<SM} of 
-             {true,_} -> 
-               (SH-H)*60+SM-M ;
-             {false,_} -> 
-               case H==SH of 
-                 true -> 
-                   SM-M;
-                 false -> 
-                   (24-(SH-H))*60+SM-M
-               end
-           end,
-    Millis = Mins*60*1000,
-    Timer = timer:apply_after(Millis,gen_server,call,[self(),{start_timer,{EH-SH,EM-SM}}]),
-    NewState = State#state{timer=Timer},
-    Reply = ok,
-    {reply, Reply, NewState};
+handle_call({set_timer,{SH,SM},{EH,EM}}, _From, #state{timer=T} = State) ->
+  case T of 
+    undefined -> undefined;
+    {Ti,_} -> timer:cancel(Ti)
+  end,
 
-handle_call({start_timer,{H,M}}, _From, #state{color=Color} = State) ->
+  {_Date,{H,M,_}} = calendar:local_time(),
+  Mins = case {H<SH,M<SM} of 
+           {true,_} -> 
+             (SH-H)*60+SM-M ;
+           {false,_} -> 
+             case H==SH of 
+               true -> 
+                 SM-M;
+               false -> 
+                 (24-(SH-H))*60+SM-M
+             end
+         end,
+  Millis = Mins*60*1000,
+  {RH,RM} = case {EH>SH,EM>SM} of 
+              {true,true} -> 
+                {EH-SH,EM-SM};
+              {true,false} ->
+                {EH-SH-1,(60-SM)+EM};
+              {false,true} ->
+                {24-SH+EH,EM-SM};
+              {false,false} ->
+                {24-SH+EH-1,(60-SM)+EM}
+            end,
+  io:format("RH:RM - ~p : ~p ~n",[RH,RM]),
+  {ok,Timer} = timer:apply_after(Millis,gen_server,call,[self(),{start_timer,{RH,RM}}]),
+  NewState = State#state{timer={Timer,{{SH,SM},{EH,EM}}}},
+  Reply = ok,
+  {reply, Reply, NewState};
+
+
+handle_call({start_timer,{H,M}}, _From, #state{color=Color,timer={_Timer,TC}} = State) ->
+    io:format("H: ~p M: ~p~n",[H,M]),
     OnAgain = H*24+M*60*1000,
     timer:apply_after(OnAgain,gen_server,call,[self(),{set_color,{maps:get(r,Color),maps:get(g,Color),maps:get(b,Color)}}]),
     spawn(gen_server,call,[self(),{set_color,{0,0,0}}]), 
     Millis = 24*60*60*1000,
 
-    Timer = timer:apply_after(Millis,gen_server,call,[self(),{start_timer,{H,M}}]),
-    NewState = State#state{timer=Timer},
+    {ok,Timer} = timer:apply_after(Millis,gen_server,call,[self(),{start_timer,{H,M}}]),
+    NewState = State#state{timer={Timer,TC}},
     Reply = ok,
     {reply, Reply, NewState};
+
+handle_call({get_timer}, _From, #state{timer=Timer} = State) ->
+  Reply = case Timer of 
+            undefined -> {ok,undefined};
+            {_,T} -> {ok,T}
+          end,
+  {reply, Reply, State};
 
 handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
   Reply = case Timer of 
             undefined -> 
               {ok,no_timer_set};
-            _ -> 
+            {Timer,_} -> 
               timer:cancel(Timer)
           end,
-  {reply, Reply, State};
+  NewState = State#state{timer=undefined},
+  {reply, Reply, NewState};
 
 handle_call({get_color}, _From, #state{color=Color} = State) ->
     Reply = {ok,Color},
@@ -119,7 +145,6 @@ handle_call({set_color,{R,G,B}}, _From, State) ->
     NewState= State#state{color=#{r=>R,g=>G,b=>B}},
     Reply = ok,
     {reply, Reply, NewState};
-
 
 handle_call({add_node,{_NodeId,_NodePid} = NodeIdPid}, _From, #state{nodes=Nodes} = State) ->
     NewNodes= [NodeIdPid|Nodes],
@@ -137,15 +162,15 @@ handle_call({get_alarm}, _From, #state{alarm=Alarm} = State) ->
     Reply = {ok,Alarm},
     {reply, Reply, State};
 
-handle_call({set_alarm,_Node}, _From, State) ->
+handle_call({set_alarm,_Node}, _From, #state{color=Color} = State) ->
   io:format("Alarm set"),
-    NewState = State#state{alarm=true}, 
+    NewState = State#state{alarm={true,Color},color=#{r=>255,g=>0,b=>0}}, 
     Reply = ok,
     {reply, Reply, NewState};
 
-handle_call({reset_alarm,_Node}, _From, State) ->
+handle_call({reset_alarm,_Node}, _From, #state{alarm={_,AColor}} = State) ->
     io:format("Alarm REset"),
-    NewState = State#state{alarm=false}, 
+    NewState = State#state{alarm=false,color=AColor}, 
     Reply = ok,
     {reply, Reply, NewState}.
 %%--------------------------------------------------------------------

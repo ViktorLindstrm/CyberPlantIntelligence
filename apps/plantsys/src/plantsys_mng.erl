@@ -16,6 +16,8 @@
 -export([add_node/1,
          add_leds/1,
          get_ledsalarm/1,
+         get_ledstimer/1,
+         stop_ledstimer/1,
          get_leds/1,
          set_ledscolor/4,
          get_ledscolor/1,
@@ -183,6 +185,15 @@ handle_call({get_ledscolor,LedsId}, _From, #state{leds=Leds} = State) ->
   Reply = case lists:keyfind(LedsId,1,Leds) of 
             {_,Pid} -> 
               gen_server:call(Pid,{get_color});
+            false -> 
+              {error,no_such_leds}
+          end,
+  {reply, Reply, State};
+
+handle_call({get_ledstimer,LedsId}, _From, #state{leds=Leds} = State) ->
+  Reply = case lists:keyfind(LedsId,1,Leds) of 
+            {_,Pid} -> 
+              gen_server:call(Pid,{get_timer});
             false -> 
               {error,no_such_leds}
           end,
@@ -476,6 +487,7 @@ start_pumptimer(PumpId,WaitTime,RunTime) -> gen_server:call(?MODULE,{start_pumpt
 stop_pumptimer(PumpId) -> gen_server:call(?MODULE,{stop_pumptimer,PumpId}).
 
 get_ledscolor(LedsId) -> gen_server:call(?MODULE,{get_ledscolor,LedsId}).
+get_ledstimer(LedsId) -> gen_server:call(?MODULE,{get_ledstimer,LedsId}).
 set_ledscolor(LedsId,R,G,B) -> gen_server:call(?MODULE,{set_ledscolor,{LedsId,{R,G,B}}}).
 get_leds(LedsId) -> gen_server:call(?MODULE,{get_leds,LedsId}).
 get_ledsalarm(LedsId)  -> gen_server:call(?MODULE,{get_ledsalarm,LedsId}).

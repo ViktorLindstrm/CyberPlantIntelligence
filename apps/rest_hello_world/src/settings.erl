@@ -406,6 +406,10 @@ leds_body(Leds,Color) ->
   R =integer_to_list(maps:get(r,Color)),
   G =integer_to_list(maps:get(g,Color)),
   B =integer_to_list(maps:get(b,Color)),
+  {{SH,SM},{EH,EM}} = case plantsys_mng:get_ledstimer(erlang:binary_to_atom(Leds,utf8)) of 
+                        {ok,undefined} -> {{0,0},{0,0}};
+                        {ok,Timer} -> Timer
+                      end,
   [
    nav(),"<div class=\"container-fluid\">",
    side(),
@@ -418,15 +422,15 @@ leds_body(Leds,Color) ->
      B: <input type=\"text\" name=\"b\", value="++B++"><br>
     <button type=\"submit\" class=\"btn btn-success\">Set Color</button>
    </form>
-   <h1>timer</h1>
+   <u><h1>Timer</h1></u>
     <form action=\"settings?leds=",Leds,"\" method=\"post\" accept-charset=\"utf-8\">
     <h2>Start sleep</h2>
-     <input type=\"text\" name=\"sh\", value=0><br>
-     <input type=\"text\" name=\"sm\", value=0><br>
+     <input type=\"text\" name=\"sh\", value="++integer_to_list(SH)++"> : 
+     <input type=\"text\" name=\"sm\", value="++integer_to_list(SM)++"><br>
     <h2>Stop sleep</h2>
-     <input type=\"text\" name=\"eh\", value=0><br>
-     <input type=\"text\" name=\"em\", value=0><br>
-    <button type=\"submit\" class=\"btn btn-success\">Set Color</button>
+     <input type=\"text\" name=\"eh\", value="++integer_to_list(EH)++"> : 
+     <input type=\"text\" name=\"em\", value="++integer_to_list(EM)++"><br>
+    <button type=\"submit\" class=\"btn btn-success\">Set Timer</button>
    </form>
    </div>"
   ].
