@@ -110,7 +110,7 @@ handle_call({set_timer,{SH,SM},{EH,EM}}, _From, #state{timer=T} = State) ->
 
 handle_call({start_timer,{H,M}}, _From, #state{color=Color,timer={_Timer,TC}} = State) ->
     io:format("H: ~p M: ~p~n",[H,M]),
-    OnAgain = H*24+M*60*1000,
+    OnAgain = (H*60+M)*60*1000,
     timer:apply_after(OnAgain,gen_server,call,[self(),{set_color,{maps:get(r,Color),maps:get(g,Color),maps:get(b,Color)}}]),
     spawn(gen_server,call,[self(),{set_color,{0,0,0}}]), 
     Millis = 24*60*60*1000,
