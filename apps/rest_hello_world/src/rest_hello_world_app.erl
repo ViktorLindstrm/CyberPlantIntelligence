@@ -23,9 +23,9 @@ start(_Type, _Args) ->
       {"/static/[...]", cowboy_static, {priv_dir, rest_hello_world, "static"}}
 		]}
 	]),
-	{ok, _} = cowboy:start_clear(http, 100, [{port, 8080}], #{
-		env => #{dispatch => Dispatch}
-	}),
+    {ok, _} = cowboy:start_clear(http, [{port, 8080}], #{
+                                                env => #{dispatch => Dispatch}
+                                                    }),
 	rest_hello_world_sup:start_link().
 
 stop(_State) ->

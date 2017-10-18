@@ -73,7 +73,7 @@ init([Id]) ->
 %%--------------------------------------------------------------------
 
 handle_call({set_timer,{SH,SM},{EH,EM}}, _From, #state{timer=T} = State) ->
-  case T of 
+  case T of
     undefined -> undefined;
     {Ti,_} -> timer:cancel(Ti)
   end,
@@ -139,6 +139,14 @@ handle_call({stop_timer}, _From, #state{timer=Timer} = State) ->
 
 handle_call({get_color}, _From, #state{color=Color} = State) ->
     Reply = {ok,Color},
+    {reply, Reply, State};
+
+handle_call({get_nodes}, _From, #state{nodes=Nodes} = State) ->
+    Reply = {ok,Nodes},
+    {reply, Reply, State};
+
+handle_call({get_led}, _From, #state{id = Id,nodes=Nodes,pumps=Pumps,name = Name,color=Color} = State) ->
+    Reply = {ok,#{nodes=>Nodes,pumps=>Pumps,id=>Id,name=>Name,color=>Color}},
     {reply, Reply, State};
 
 handle_call({set_color,{R,G,B}}, _From, State) ->

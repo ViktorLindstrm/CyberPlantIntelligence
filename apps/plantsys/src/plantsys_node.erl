@@ -85,6 +85,12 @@ handle_call({set_leds,{LedsId,LedsPid}}, _From, State) ->
   Reply = ok,
   {reply, Reply, NewState};
 
+handle_call({unset_leds}, _From, State) ->
+  NewState = State#state{leds=undefined},
+  Reply = ok,
+  {reply, Reply, NewState};
+
+
 handle_call({set_pump,PumpId}, _From, State) ->
   NewState = State#state{pump=PumpId},
   Reply = ok,

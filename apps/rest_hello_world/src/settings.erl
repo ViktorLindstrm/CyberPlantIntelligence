@@ -322,7 +322,38 @@ pumpstatus(Pump,Last) ->
   io:format("Pumpstatus: ~p~n",[R]),
   R.
 
+int_to_hex(C) ->
+    CHex = integer_to_list(C,16),
+    case length(CHex) of
+        1 -> "0"++CHex;
+        _ -> CHex
+    end.
+
+
+
+    
+
+
 body({Node,Last},Name,Limit,Image) -> 
+    {ok,Leds} = plantsys_mng:get_leds(),
+    LedsStatus = lists:map(fun(Led) -> 
+                                   {ok,LedData} = plantsys_mng:get_led(maps:get(id,Led)),
+                                   LedNodes = maps:get(nodes,LedData),
+                                   Color = maps:get(color,LedData),
+                                   R = maps:get(r,Color),
+                                   G = maps:get(g,Color),
+                                   B = maps:get(b,Color),
+                                   CHex = int_to_hex(R)++int_to_hex(G)++int_to_hex(B), 
+                                   case lists:keyfind(binary_to_atom(Node,utf8),1,LedNodes) of 
+                                       {_,_} -> 
+                                           "<a href=\"settings?leds="++ erlang:atom_to_list(maps:get(id,Led)) ++"\" class=\"btn btn-success\" role=\"button\">
+                                           <span class=\"glyphicon glyphicon-tint\"style=\"color:#"++CHex++"\"></span> "++maps:get(name,Led) ++"</a>";
+                                       false -> 
+                                           "<a href=\"settings?leds="++ erlang:atom_to_list(maps:get(id,Led)) ++"\" class=\"btn btn-danger\" role=\"button\">"++maps:get(name,Led) ++"</a>"
+                                   end
+                           end,Leds),
+
+
   PumpStatus = case plantsys_mng:get_connected_pump(erlang:binary_to_atom(Node,utf8)) of 
                  {ok,undefined} -> 
                    <<"No pump connected">>;
@@ -360,7 +391,9 @@ nav(),"
             <button type=\"submit\" class=\"btn btn-primary btn-block\">Upload</button>
           </div>
         </form>
-        <form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
+        <h2>Leds:</h2>",
+          LedsStatus,
+        "<form action=\"settings?node=",Node,"\" method=\"post\" accept-charset=\"utf-8\">
           <button type=\"submit\" name=\"deletenode\" class=\"btn btn-danger btn-lg pull-left\"><span class=\"glyphicon glyphicon-warning-sign\" aria-hidden=\"true\"></span>  Delete</button>
         </form>
         </div>
@@ -376,12 +409,24 @@ plot() ->
 leds(<<"POST">>, Leds, Req0) ->
   LedsId = erlang:binary_to_atom(Leds,utf8),
   {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
-  %io:format("PostVals:~p",[PostVals]),
   case PostVals of 
     [{<<"sh">>,SH}, {<<"sm">>,SM}, {<<"eh">>,EH}, {<<"em">>,EM}] ->
       plantsys_mng:set_ledstimer(LedsId,binary_to_integer(SH),binary_to_integer(SM),binary_to_integer(EH),binary_to_integer(EM));
-    [{<<"r">>,R}, {<<"g">>,G}, {<<"b">>,B}] -> 
-      plantsys_mng:set_ledscolor(LedsId,binary_to_integer(R),binary_to_integer(G),binary_to_integer(B))
+    [{<<"color">>,CHexBin}] -> 
+         CHex = binary_to_list(CHexBin), 
+         R = list_to_integer(lists:sublist(CHex,1,2),16),
+         G = list_to_integer(lists:sublist(CHex,3,2),16),
+         B = list_to_integer(lists:sublist(CHex,5,2),16),
+      plantsys_mng:set_ledscolor(LedsId,R,G,B);
+      [{<<"node">>,Node}] -> 
+          NodeId = binary_to_atom(Node,utf8),
+          {ok,NData}= plantsys_mng:get_led(LedsId),
+          case lists:keyfind(NodeId,1,maps:get(nodes,NData)) of 
+              {_,_} ->
+                  plantsys_mng:unset_leds(NodeId,LedsId);
+              false ->
+                  plantsys_mng:set_leds(NodeId,LedsId)
+          end
   end,
   
   cowboy_req:reply(302, #{
@@ -403,9 +448,23 @@ leds(<<"GET">>, Leds, Req0) ->
 
 
 leds_body(Leds,Color) -> 
+  {ok, Data} = plantsys_mng:get_led(binary_to_atom(Leds,utf8)),
+  {ok, Nodes} = plantsys_mng:get_nodes(),
+  ButtonNodes = lists:map(fun(Node) ->
+                                  case lists:keyfind(maps:get(id,Node),1,maps:get(nodes,Data)) of 
+                                      {_,_} -> 
+                                        "<button type=\"submit\" name=\"node\" value="++atom_to_list(maps:get(id,Node))++" class=\"btn btn-success btn-lg\">"++maps:get(name,Node)++"</button>";
+                                      false ->
+                                        "<button type=\"submit\" name=\"node\" value="++atom_to_list(maps:get(id,Node))++" class=\"btn btn-danger btn-lg\">"++maps:get(name,Node)++"</button>"
+                                  end
+
+                          end,Nodes),
   R =integer_to_list(maps:get(r,Color)),
   G =integer_to_list(maps:get(g,Color)),
   B =integer_to_list(maps:get(b,Color)),
+
+  CHex = int_to_hex(list_to_integer(R))++int_to_hex(list_to_integer(G))++int_to_hex(list_to_integer(B)),
+
   {{SH,SM},{EH,EM}} = case plantsys_mng:get_ledstimer(erlang:binary_to_atom(Leds,utf8)) of 
                         {ok,undefined} -> {{0,0},{0,0}};
                         {ok,Timer} -> Timer
@@ -417,9 +476,7 @@ leds_body(Leds,Color) ->
           <h1 class=\"page-header\">Settings ",Leds,"</h1>
       <div class=\"row placeholders\" id=\"settings\">
     <form action=\"settings?leds=",Leds,"\" method=\"post\" accept-charset=\"utf-8\">
-     R: <input type=\"text\" name=\"r\", value="++R++"><br>
-     G: <input type=\"text\" name=\"g\", value="++G++"><br>
-     B: <input type=\"text\" name=\"b\", value="++B++"><br>
+     Color:#<input type=\"text\" name=\"color\", value="++CHex++"><br>
     <button type=\"submit\" class=\"btn btn-success\">Set Color</button>
    </form>
    <u><h1>Timer</h1></u>
@@ -432,6 +489,10 @@ leds_body(Leds,Color) ->
      <input type=\"text\" name=\"em\", value="++integer_to_list(EM)++"><br>
     <button type=\"submit\" class=\"btn btn-success\">Set Timer</button>
    </form>
+    <h1> Nodes Connected: </h1>
+    <form action=\"settings?leds=",Leds,"\" method=\"post\" accept-charset=\"utf-8\">",ButtonNodes,
+   "</form>
+
    </div>"
   ].
 
