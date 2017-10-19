@@ -38,8 +38,8 @@ get_update(Req,State) ->
 send_update(Req,State) ->
   LedsIdBin = cowboy_req:binding(id, Req),
   LedsId = erlang:binary_to_atom(LedsIdBin,utf8),
-  case plantsys_mng:get_leds(LedsId) of 
-    {error,_E} ->  %%If no node exists
+  case plantsys_mng:get_led(LedsId) of 
+    {error,not_found} ->  %%If no node exists
       %io:format("Error: ~p~n",[E]),
       plantsys_mng:add_leds(LedsId);
       %io:format("LedsId: ~p~n",[LedsId]);
