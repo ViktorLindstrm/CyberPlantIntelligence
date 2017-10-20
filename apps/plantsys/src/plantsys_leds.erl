@@ -75,7 +75,9 @@ init([Id]) ->
 handle_call({set_timer,{SH,SM},{EH,EM}}, _From, #state{timer=T} = State) ->
   case T of
     undefined -> undefined;
-    {Ti,_} -> timer:cancel(Ti)
+    {Ti,_} -> timer:cancel(Ti);
+      E -> io:format("Timer Error: ~p~n",[E])
+
   end,
 
   {_Date,{H,M,_}} = calendar:local_time(),
