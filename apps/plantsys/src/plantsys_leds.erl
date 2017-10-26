@@ -178,10 +178,14 @@ handle_call({set_alarm,_Node}, _From, #state{color=Color} = State) ->
     Reply = ok,
     {reply, Reply, NewState};
 
-handle_call({reset_alarm,_Node}, _From, #state{alarm={_,AColor}} = State) ->
+handle_call({reset_alarm,_Node}, _From, #state{alarm=Alarm} = State) ->
     io:format("Alarm REset"),
-    NewState = State#state{alarm=false,color=AColor}, 
-    Reply = ok,
+    {Reply,NewState} = case Alarm of 
+                           {_,AColor} ->
+                               {ok, State#state{alarm=false,color=AColor}};
+                           false -> 
+                               {error,no_alarm_set}
+                       end,
     {reply, Reply, NewState}.
 %%--------------------------------------------------------------------
 %% @private
