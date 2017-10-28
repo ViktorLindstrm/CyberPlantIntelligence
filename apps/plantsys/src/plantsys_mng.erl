@@ -230,6 +230,7 @@ handle_call({add_data,{NodeId,Data}}, _From, #state{nodes=Nodes} = State) ->
           end,
   {reply, Reply, State};
 
+%ta bort dependency till noden för att ta bort pump.
 handle_call({remove_pumpnode,{PumpId,NodeId}}, _From, #state{nodes=Nodes,pumps=Pumps} = State) ->
   Reply = case lists:keyfind(PumpId,1,Pumps) of
             {_,PumpPid} ->
