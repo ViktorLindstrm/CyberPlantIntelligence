@@ -54,4 +54,4 @@ send_update(Req,State) ->
     %LedsRGB = maps:get(color,Status),
     JsonStatus = jiffy:encode(Status),
     io:format("Got hi from ~p~nanswering with: ~p~n",[LedsId,JsonStatus]),
-    {JsonStatus, Req, State}.
+    {<<JsonStatus/binary,<<"\n">>/binary>>, Req, State}.

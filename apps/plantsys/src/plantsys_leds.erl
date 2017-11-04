@@ -189,7 +189,7 @@ handle_call({reset_alarm,_Node}, _From, #state{alarm=Alarm} = State) ->
     {reply, Reply, NewState};
 %For debugging purpuses
 handle_call(NotHandled, _From, State) ->
-    io:format("Error!! ~nin: ~p~nState: ~n",[NotHandled,State]).
+    io:format("Error!! ~nin: ~p~nState:~p ~n",[NotHandled,State]).
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
