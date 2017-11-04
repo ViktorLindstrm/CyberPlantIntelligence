@@ -184,12 +184,9 @@ handle_call({reset_alarm,_Node}, _From, #state{alarm=Alarm} = State) ->
                            {_,AColor} ->
                                {ok, State#state{alarm=false,color=AColor}};
                            false -> 
-                               {error,no_alarm_set}
+                               {{error,no_alarm_set},State}
                        end,
-    {reply, Reply, NewState};
-%For debugging purpuses
-handle_call(NotHandled, _From, State) ->
-    io:format("Error!! ~nin: ~p~nState:~p ~n",[NotHandled,State]).
+    {reply, Reply, NewState}.
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
