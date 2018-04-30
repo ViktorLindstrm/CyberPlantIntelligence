@@ -14,12 +14,12 @@ websocket_init(State) ->
 	{ok, State}.
 
 websocket_handle({text, <<"nodes">>}, State) ->
-  {ok,Nodes} = plantsys_mng:get_nodes(),
+  {ok,Nodes} = plantsys_usrmng:get_nodes(viktor),
   NodesBin = jiffy:encode(Nodes),
 	{reply, {text, << "Nodes: ", NodesBin/binary >>}, State};
 
 websocket_handle({text, <<"pumps">>}, State) ->
-  {ok,Pumps} = plantsys_mng:get_pumps(),
+  {ok,Pumps} = plantsys_usrmng:get_pumps(viktor),
   io:format("Pumps: ~p~n",[Pumps]),
   PumpsU = lists:map(fun(X) -> 
                          Timer = maps:get(timer,X),
@@ -40,12 +40,12 @@ websocket_info({timeout, _Ref, Msg}, State) ->
 	{reply, {text, Msg}, State};
 
 websocket_info({new_node}, State) ->
-  {ok,Nodes} = plantsys_mng:get_nodes(),
+  {ok,Nodes} = plantsys_usrmng:get_nodes(viktor),
   NodesBin = jiffy:encode(Nodes),
 	{reply, {text, << "Nodes: ", NodesBin/binary >>}, State};
 
 websocket_info({new_pump}, State) ->
-  {ok,Pumps} = plantsys_mng:get_pumps(),
+  {ok,Pumps} = plantsys_usrmng:get_pumps(viktor),
   PumpsBin = jiffy:encode(Pumps),
 	{reply, {text, << "Pumps: ", PumpsBin/binary >>}, State};
 

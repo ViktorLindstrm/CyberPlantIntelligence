@@ -33,9 +33,9 @@ add_datapoint(Req,State) ->
   io:format("Input datapoint: ~p~n",[Data]),
   NodeIdBin = cowboy_req:binding(id, Req2),
   NodeId = erlang:binary_to_atom(NodeIdBin,utf8),
-  case plantsys_mng:find_node(NodeId) of 
+  case plantsys_usrmng:find_node(viktor,NodeId) of 
     {error,_} ->  %%If no node exists
-      plantsys_mng:add_node(NodeId);
+      plantsys_usrmng:add_node(viktor,NodeId);
       _ -> undefined
   end,
   {M,S,Mi} = erlang:timestamp(),
@@ -44,7 +44,7 @@ add_datapoint(Req,State) ->
   InData = jiffy:decode(Data,[return_maps]),
   JsonData = maps:put(<<"timestamp">>,integer_to_binary(Time),InData),
   io:format("In: ~p~n~n",[JsonData]),
-  plantsys_mng:new_datapoint(NodeId,JsonData),
+  plantsys_usrmng:new_datapoint(viktor,NodeId,JsonData),
   update_nodes(),
   {true,Req2,State}.
 

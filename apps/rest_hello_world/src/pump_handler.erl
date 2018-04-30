@@ -30,9 +30,9 @@ get_update(Req,State) ->
   {ok, Data, Req2} = cowboy_req:read_body(Req, #{length => 1000000, period => 5000}),
   PumpIdBin = cowboy_req:binding(id, Req2),
   PumpId = erlang:binary_to_atom(PumpIdBin,utf8),
-  case plantsys_mng:get_pump(PumpId) of 
+  case plantsys_usrmng:get_pump(viktor,PumpId) of 
     {error,_} ->  %%If no node exists
-      plantsys_mng:add_pump(PumpId),
+      plantsys_usrmng:add_pump(viktor,PumpId),
       io:format("PumpId: ~p~nStatus: ~p~n",[PumpId,Data]);
       _ -> undefined
   end,
@@ -41,14 +41,14 @@ get_update(Req,State) ->
 send_update(Req,State) ->
   PumpIdBin = cowboy_req:binding(id, Req),
   PumpId = erlang:binary_to_atom(PumpIdBin,utf8),
-  case plantsys_mng:get_pump(PumpId) of 
+  case plantsys_usrmng:get_pump(viktor,PumpId) of 
     {error,E} ->  %%If no node exists
       io:format("Error: ~p~n",[E]),
-      plantsys_mng:add_pump(PumpId),
+      plantsys_usrmng:add_pump(viktor,PumpId),
       io:format("PumpId: ~p~n",[PumpId]);
       _ -> undefined
   end,
-  {ok,Status} = plantsys_mng:get_pumpdata(PumpId),
+  {ok,Status} = plantsys_usrmng:get_pumpdata(viktor,PumpId),
   
   JsonStatus = jiffy:encode(#{status => maps:get(status,Status)}),
 	{JsonStatus, Req, State}.

@@ -38,20 +38,20 @@ content_types_provided(Req, State) ->
 send_update(Req,State) ->
     LedsIdBin = cowboy_req:binding(id, Req),
     LedsId = erlang:binary_to_atom(LedsIdBin,utf8),
-    case plantsys_mng:get_led(LedsId) of
+    case plantsys_usrmng:get_led(viktor,LedsId) of
         {error,not_found} ->  %%If no node exists
             %io:format("Error: ~p~n",[E]),
-            plantsys_mng:add_leds(LedsId);
+            plantsys_usrmng:add_leds(viktor,LedsId);
         %io:format("LedsId: ~p~n",[LedsId]);
         _ -> undefined
     end,
-    {ok,Status} = case plantsys_mng:get_ledsalarm(LedsId) of
+    {ok,Status} = case plantsys_usrmng:get_ledsalarm(viktor,LedsId) of
                       {ok,true} ->
                           {ok,#{r=>255,g=>0,b=>0}};
                       _ ->
-                          plantsys_mng:get_ledscolor(LedsId)
+                          plantsys_usrmng:get_ledscolor(viktor,LedsId)
                   end,
     %LedsRGB = maps:get(color,Status),
     JsonStatus = jiffy:encode(Status),
     io:format("Got hi from ~p~nanswering with: ~p~n",[LedsId,JsonStatus]),
-    {<<JsonStatus/binary,<<"\n">>/binary>>, Req, State}.
+    {JsonStatus, Req, State}.

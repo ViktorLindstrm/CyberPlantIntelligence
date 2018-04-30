@@ -10,8 +10,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0,
-        start_child/0]).
+-export([start_link/0]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -30,15 +29,15 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []),
-    start_child().
+    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+    %start_child().
 
 %%%===================================================================
 %%% Supervisor callbacks
 %%%===================================================================
 
-start_child() ->
-  supervisor:start_child(?SERVER, []).
+%start_child() ->
+  %supervisor:start_child(?SERVER, []).
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -53,7 +52,7 @@ start_child() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    RestartStrategy = simple_one_for_one,
+    RestartStrategy = one_for_one,
     MaxRestarts = 1000,
     MaxSecondsBetweenRestarts = 3600,
 
@@ -61,19 +60,16 @@ init([]) ->
 
     Restart = permanent,
     Shutdown = 2000,
-    %Type = worker,
+    Type = worker,
 
-    %UsrMngr = {'plantsys_usrmng', {'plantsys_usrmng', start_link, []},
-              %Restart, Shutdown, Type, ['plantsys_usrmng']},
+    UsrMngr = {'plantsys_usrmng', {'plantsys_usrmng', start_link, []},
+              Restart, Shutdown, Type, ['plantsys_usrmng']},
 
-    PlantSup = {'plantsys_sup', {'plantsys_sup', start_link, []},
-              Restart, Shutdown, supervisor, ['plantsys_sup']},
+    PlantSup = {'plantsys_usrsup', {'plantsys_usrsup', start_link, []},
+              Restart, Shutdown, supervisor, ['plantsys_usrsup']},
 
-    {ok, {SupFlags, [PlantSup]}}.
+    {ok, {SupFlags, [PlantSup,UsrMngr]}}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-

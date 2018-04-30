@@ -21,32 +21,32 @@ pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttime
   PumpId = binary_to_atom(Pump,utf8),
   case Status of
     <<"on">> ->
-      plantsys_mng:stop_pumptimer(PumpId);
+      plantsys_usrmng:stop_pumptimer(vikotr,PumpId);
     <<"off">> -> 
       WTimerMin = erlang:binary_to_integer(WaitTimer)*1000*60*60,
       RTimerSec = erlang:binary_to_integer(RunTimer)*1000,
-      plantsys_mng:start_pumptimer(PumpId,WTimerMin,RTimerSec)
+      plantsys_usrmng:start_pumptimer(viktor,PumpId,WTimerMin,RTimerSec)
   end;
 
 pump_action([{<<"add">>,Node}|_],Pump) -> 
   NodeId = binary_to_atom(Node,utf8),
   PumpId = binary_to_atom(Pump,utf8),
-  plantsys_mng:set_pump(NodeId,PumpId);
+  plantsys_usrmng:set_pump(viktor,NodeId,PumpId);
 
 pump_action([{<<"remove">>,Node}|_],Pump) -> 
   NodeId = binary_to_atom(Node,utf8),
   PumpId = binary_to_atom(Pump,utf8),
-  plantsys_mng:remove_pumpnode(PumpId,NodeId);
+  plantsys_usrmng:remove_pumpnode(viktor,PumpId,NodeId);
 
 pump_action([{<<"status">>,Current}|_],Pump) -> 
   PumpId = binary_to_atom(Pump,utf8),
   case Current of
     <<"undefined">> -> 
-      plantsys_mng:start_pump(PumpId);
+      plantsys_usrmng:start_pump(viktor,PumpId);
     <<"on">> -> 
-      plantsys_mng:stop_pump(PumpId);
+      plantsys_usrmng:stop_pump(viktor,PumpId);
     <<"off">> -> 
-      plantsys_mng:start_pump(PumpId)
+      plantsys_usrmng:start_pump(viktor,PumpId)
   end.
 
 pump(<<"POST">>, Pump, Req0) ->
@@ -60,7 +60,7 @@ pump(<<"POST">>, Pump, Req0) ->
 
 pump(<<"GET">>, Pump, Req0) ->
   PumpId = erlang:binary_to_atom(Pump,utf8),
-  {ok,PumpData} = plantsys_mng:get_pumpdata(PumpId),
+  {ok,PumpData} = plantsys_usrmng:get_pumpdata(viktor,PumpId),
   Connected = maps:get(nodes,PumpData),
   Status = maps:get(status,PumpData),
   Timer = maps:get(timer,PumpData),
@@ -73,7 +73,7 @@ pump(<<"GET">>, Pump, Req0) ->
        "<body>",Body,"</body></html>"], Req0).
    
 pump_body(PumpId,Status,Connected,Timer) -> 
-  {ok,Nodes} = plantsys_mng:get_nodes(),
+  {ok,Nodes} = plantsys_usrmng:get_nodes(viktor),
   NodeIds= lists:map(fun(X) -> 
                          {maps:get(id,X),list_to_atom(maps:get(name,X))} 
                      end,lists:reverse(Nodes)),
@@ -163,26 +163,26 @@ sensor(<<"POST">>, Node, Req0) ->
              {ok, Data, Req2} = cowboy_req:read_part_body(Req1),
 
              Base64 = base64:encode(Data),
-             plantsys_mng:set_image(NodeId,Base64), 
+             plantsys_usrmng:set_image(viktor,NodeId,Base64), 
              Req2;
 
            _ -> 
              {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
              case hd(PostVals) of
                {<<"deletenode">>,_} -> 
-                 plantsys_mng:remove_node(NodeId),
+                 plantsys_usrmng:remove_node(viktor,NodeId),
                  Req;
               _ -> 
                {_,NewName} = lists:keyfind(<<"newnode">>,1,PostVals),
                case NewName of 
                  <<>> -> undefined;
-                 _ -> plantsys_mng:set_name(NodeId,binary_to_list(NewName))
+                 _ -> plantsys_usrmng:set_name(viktor,NodeId,binary_to_list(NewName))
                end,
                {_,NewLimit} = lists:keyfind(<<"newlimit">>,1,PostVals),
                case re:run(NewLimit,"^[0-9].*$") of
                  {match,_} -> 
                    Limit = erlang:binary_to_integer(NewLimit),
-                   plantsys_mng:set_limit(NodeId,Limit);
+                   plantsys_usrmng:set_limit(viktor,NodeId,Limit);
                  _ -> undefined
                end,
                Req
@@ -195,7 +195,7 @@ sensor(<<"POST">>, Node, Req0) ->
 
 sensor(<<"GET">>, Node, Req0) ->
   NodeId = erlang:binary_to_atom(Node,utf8),
-  {ok,RawData} = plantsys_mng:get_data(NodeId),
+  {ok,RawData} = plantsys_usrmng:get_data(viktor,NodeId),
   Data = lists:map(fun(X) -> 
                 D = binary_to_integer(maps:get(<<"data">>,X)),
                 T = maps:get(<<"timestamp">>,X),
@@ -203,8 +203,8 @@ sensor(<<"GET">>, Node, Req0) ->
             end,RawData),
   Title = "Settings",
   Nav = nav(),
-  {ok,Image} = plantsys_mng:get_image(NodeId),
-  {Head,Body} = case plantsys_mng:get_settings(NodeId) of 
+  {ok,Image} = plantsys_usrmng:get_image(viktor,NodeId),
+  {Head,Body} = case plantsys_usrmng:get_settings(viktor,NodeId) of 
                   {error,_ } -> "nothing";
                   {ok,Settings} ->  Limit = maps:get(limit,Settings),
                                     Name = maps:get(name,Settings),
@@ -335,9 +335,9 @@ int_to_hex(C) ->
 
 
 body({Node,Last},Name,Limit,Image) -> 
-    {ok,Leds} = plantsys_mng:get_leds(),
+    {ok,Leds} = plantsys_usrmng:get_leds(viktor),
     LedsStatus = lists:map(fun(Led) -> 
-                                   {ok,LedData} = plantsys_mng:get_led(maps:get(id,Led)),
+                                   {ok,LedData} = plantsys_usrmng:get_led(viktor,maps:get(id,Led)),
                                    LedNodes = maps:get(nodes,LedData),
                                    Color = maps:get(color,LedData),
                                    R = maps:get(r,Color),
@@ -354,7 +354,7 @@ body({Node,Last},Name,Limit,Image) ->
                            end,Leds),
 
 
-  PumpStatus = case plantsys_mng:get_connected_pump(erlang:binary_to_atom(Node,utf8)) of 
+  PumpStatus = case plantsys_usrmng:get_connected_pump(viktor,erlang:binary_to_atom(Node,utf8)) of 
                  {ok,undefined} -> 
                    <<"No pump connected">>;
                  {ok,R} -> 
@@ -411,21 +411,21 @@ leds(<<"POST">>, Leds, Req0) ->
   {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
   case PostVals of 
     [{<<"sh">>,SH}, {<<"sm">>,SM}, {<<"eh">>,EH}, {<<"em">>,EM}] ->
-      plantsys_mng:set_ledstimer(LedsId,binary_to_integer(SH),binary_to_integer(SM),binary_to_integer(EH),binary_to_integer(EM));
+      plantsys_usrmng:set_ledstimer(viktor,LedsId,binary_to_integer(SH),binary_to_integer(SM),binary_to_integer(EH),binary_to_integer(EM));
     [{<<"color">>,CHexBin}] -> 
          CHex = binary_to_list(CHexBin), 
          R = list_to_integer(lists:sublist(CHex,1,2),16),
          G = list_to_integer(lists:sublist(CHex,3,2),16),
          B = list_to_integer(lists:sublist(CHex,5,2),16),
-      plantsys_mng:set_ledscolor(LedsId,R,G,B);
+      plantsys_usrmng:set_ledscolor(viktor,LedsId,R,G,B);
       [{<<"node">>,Node}] -> 
           NodeId = binary_to_atom(Node,utf8),
-          {ok,NData}= plantsys_mng:get_led(LedsId),
+          {ok,NData}= plantsys_usrmng:get_led(viktor,LedsId),
           case lists:keyfind(NodeId,1,maps:get(nodes,NData)) of 
               {_,_} ->
-                  plantsys_mng:unset_leds(NodeId,LedsId);
+                  plantsys_usrmng:unset_leds(viktor,NodeId,LedsId);
               false ->
-                  plantsys_mng:set_leds(NodeId,LedsId)
+                  plantsys_usrmng:set_leds(viktor,NodeId,LedsId)
           end
   end,
   
@@ -436,7 +436,7 @@ leds(<<"POST">>, Leds, Req0) ->
 
 leds(<<"GET">>, Leds, Req0) ->
   LedsId = erlang:binary_to_atom(Leds,utf8),
-  {ok,Color} = plantsys_mng:get_ledscolor(LedsId),
+  {ok,Color} = plantsys_usrmng:get_ledscolor(viktor,LedsId),
   Title = "Light color",
   Body = leds_body(Leds,Color), 
   Head = head(),
@@ -448,8 +448,8 @@ leds(<<"GET">>, Leds, Req0) ->
 
 
 leds_body(Leds,Color) -> 
-  {ok, Data} = plantsys_mng:get_led(binary_to_atom(Leds,utf8)),
-  {ok, Nodes} = plantsys_mng:get_nodes(),
+  {ok, Data} = plantsys_usrmng:get_led(viktor,binary_to_atom(Leds,utf8)),
+  {ok, Nodes} = plantsys_usrmng:get_nodes(viktor),
   ButtonNodes = lists:map(fun(Node) ->
                                   case lists:keyfind(maps:get(id,Node),1,maps:get(nodes,Data)) of 
                                       {_,_} -> 
@@ -465,7 +465,7 @@ leds_body(Leds,Color) ->
 
   CHex = int_to_hex(list_to_integer(R))++int_to_hex(list_to_integer(G))++int_to_hex(list_to_integer(B)),
 
-  {{SH,SM},{EH,EM}} = case plantsys_mng:get_ledstimer(erlang:binary_to_atom(Leds,utf8)) of 
+  {{SH,SM},{EH,EM}} = case plantsys_usrmng:get_ledstimer(viktor,erlang:binary_to_atom(Leds,utf8)) of 
                         {ok,undefined} -> {{0,0},{0,0}};
                         {ok,Timer} -> Timer
                       end,

@@ -11,7 +11,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0,
+-export([start_link/1,
         start_child/1]).
 
 
@@ -31,8 +31,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+start_link(Id) ->
+    supervisor:start_link(?MODULE, [Id]).
 
 start_child(Id) ->
   supervisor:start_child(?SERVER, [Id]).
@@ -53,7 +53,8 @@ start_child(Id) ->
 %%                     {error, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
+init([Id]) ->
+    erlang:register(list_to_atom(atom_to_list(Id)++"pumpsup"),self()),
     RestartStrategy = simple_one_for_one,
     MaxRestarts = 0,
     MaxSecondsBetweenRestarts = 1,
@@ -72,6 +73,4 @@ init([]) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
 
