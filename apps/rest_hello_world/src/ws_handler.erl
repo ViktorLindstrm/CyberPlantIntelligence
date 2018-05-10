@@ -5,22 +5,52 @@
 -export([websocket_handle/2]).
 -export([websocket_info/2]).
 
-init(Req, Opts) ->
-	{cowboy_websocket, Req, Opts}.
+-record(state, {sessionid=undefined}).
+-record(user, {sessionid,access_token,id,mng,sup,username}).
+init(Req, State) ->
+
+    Cookies = cowboy_req:parse_cookies(Req),
+    io:format("Cookies: ~p~n",[Cookies]),
+    NewState = case lists:keyfind(<<"sessionid">>, 1,Cookies) of 
+               {_,SessionID} -> 
+                       #state{sessionid=SessionID};
+               false -> 
+                       State
+           end,
+	{cowboy_websocket, Req, NewState }.
 
 websocket_init(State) ->
-	%erlang:start_timer(1000, self(), <<"Hello!">>),
-  erlang:register(websocket,self()),
+    erlang:register(websocket,self()),
 	{ok, State}.
 
 websocket_handle({text, <<"nodes">>}, State) ->
-  {ok,Nodes} = plantsys_usrmng:get_nodes(viktor),
+    SessionID  = State#state.sessionid,
+    UserId = case plantsys_usrmng:validate_user(SessionID) of 
+        {ok,User} -> 
+                     User#user.username;
+
+        {error,E} ->
+            io:format("Error: ~p~n",[E]),
+            undefined
+    end,
+
+
+  {ok,Nodes} = plantsys_usrmng:get_nodes(UserId),
   NodesBin = jiffy:encode(Nodes),
 	{reply, {text, << "Nodes: ", NodesBin/binary >>}, State};
 
 websocket_handle({text, <<"pumps">>}, State) ->
-  {ok,Pumps} = plantsys_usrmng:get_pumps(viktor),
-  io:format("Pumps: ~p~n",[Pumps]),
+    SessionID  = State#state.sessionid,
+    UserId = case plantsys_usrmng:validate_user(SessionID) of 
+        {ok,User} -> 
+                     User#user.username;
+
+        {error,E} ->
+            io:format("Error: ~p~n",[E]),
+            undefined
+    end,
+
+  {ok,Pumps} = plantsys_usrmng:get_pumps(UserId),
   PumpsU = lists:map(fun(X) -> 
                          Timer = maps:get(timer,X),
                          X#{timer:=Timer#{ts:=""}}
@@ -40,12 +70,33 @@ websocket_info({timeout, _Ref, Msg}, State) ->
 	{reply, {text, Msg}, State};
 
 websocket_info({new_node}, State) ->
-  {ok,Nodes} = plantsys_usrmng:get_nodes(viktor),
+
+    SessionID  = State#state.sessionid,
+    UserId = case plantsys_usrmng:validate_user(SessionID) of 
+        {ok,User} -> 
+                     User#user.username;
+
+        {error,E} ->
+            io:format("Error: ~p~n",[E]),
+            undefined
+    end,
+
+  {ok,Nodes} = plantsys_usrmng:get_nodes(UserId),
   NodesBin = jiffy:encode(Nodes),
 	{reply, {text, << "Nodes: ", NodesBin/binary >>}, State};
 
 websocket_info({new_pump}, State) ->
-  {ok,Pumps} = plantsys_usrmng:get_pumps(viktor),
+    SessionID  = State#state.sessionid,
+    UserId = case plantsys_usrmng:validate_user(SessionID) of 
+        {ok,User} -> 
+                     User#user.username;
+
+        {error,E} ->
+            io:format("Error: ~p~n",[E]),
+            undefined
+    end,
+
+  {ok,Pumps} = plantsys_usrmng:get_pumps(UserId),
   PumpsBin = jiffy:encode(Pumps),
 	{reply, {text, << "Pumps: ", PumpsBin/binary >>}, State};
 

@@ -11,22 +11,24 @@
 %% API.
 
 start(_Type, _Args) ->
-	Dispatch = cowboy_router:compile([
-		{'_', [
-			{"/sensor/:id", toppage_handler, []},
-			{"/pump/:id", pump_handler, []},
-			{"/leds/:id", leds_handler, []},
-			{"/settings", settings, []},
-      {"/", cowboy_static, {priv_file, rest_hello_world, "index.html"}},
-      {"/node", cowboy_static, {priv_file, rest_hello_world, "get.html"}},
-      {"/websocket", ws_handler,[]},
-      {"/static/[...]", cowboy_static, {priv_dir, rest_hello_world, "static"}}
-		]}
-	]),
+    Dispatch = cowboy_router:compile([
+                                      {'_', [
+                                             {"/sensor/:user/:id", toppage_handler, []},
+                                             {"/pump/:user/:id", pump_handler, []},
+                                             {"/leds/:user/:id", leds_handler, []},
+                                             {"/settings", settings, []},
+                                             {"/login", login, []},
+                                             {"/", index_handler, []},
+                                             %{"/test", cowboy_static, {priv_file, rest_hello_world, "index.html"}},
+                                             {"/node", cowboy_static, {priv_file, rest_hello_world, "get.html"}},
+                                             {"/websocket", ws_handler,[]},
+                                             {"/static/[...]", cowboy_static, {priv_dir, rest_hello_world, "static"}}
+                                            ]}
+                                     ]),
     {ok, _} = cowboy:start_clear(http, [{port, 8080}], #{
-                                                env => #{dispatch => Dispatch}
-                                                    }),
-	rest_hello_world_sup:start_link().
+                                           env => #{dispatch => Dispatch}
+                                          }),
+    rest_hello_world_sup:start_link().
 
 stop(_State) ->
-	ok.
+    ok.
