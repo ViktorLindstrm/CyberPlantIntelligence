@@ -32,11 +32,8 @@ init(Req0, Opts) ->
            end,
     {ok, Req1, Opts}.
 
-body() ->
-
-["<!DOCTYPE html>
-<html lang=\"en\">
-  <head>
+head() ->
+["<head>
     <meta charset=\"utf-8\">
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
     <meta name=\"description\" content=\"\">
@@ -170,7 +167,13 @@ body() ->
       };
     </script>
 
-  </head>
+  </head>"
+].
+body() ->
+
+["<!DOCTYPE html>
+<html lang=\"en\">",
+ head(),"
   <body>
     <nav class=\"navbar navbar-inverse navbar-fixed-top\">
       <div class=\"container-fluid\">

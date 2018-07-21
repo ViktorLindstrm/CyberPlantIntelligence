@@ -6,7 +6,7 @@
 -export([websocket_info/2]).
 
 -record(state, {sessionid=undefined}).
--record(user, {sessionid,access_token,id,mng,sup,username}).
+-record(user, {node_token,sessionid,access_token,id,mng,sup,username}).
 init(Req, State) ->
 
     Cookies = cowboy_req:parse_cookies(Req),

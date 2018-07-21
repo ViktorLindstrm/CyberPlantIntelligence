@@ -47,7 +47,9 @@
          get_pumps/0,
          set_image/2,
          get_image/1,
-         find_node/1
+         find_node/1,
+         get_node_token/0,
+         generate_node_token/0
         ]).
 
 %% gen_server callbacks
@@ -60,7 +62,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {id=undefined,nodesup,nodes=[],pumpsup,pumps=[],ledsup,leds=[]}).
+-record(state, {node_token=undefined,id=undefined,nodesup,nodes=[],pumpsup,pumps=[],ledsup,leds=[]}).
 
 %%%===================================================================
 %%% API
@@ -112,6 +114,17 @@ init([Id]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+
+handle_call({get_node_token}, _From, #state{node_token=Token} = State) ->
+    Reply = {ok,Token},
+    {reply, Reply, State};
+
+handle_call({generate_node_token}, _From, #state{id=Id} = State) ->
+    Token = create_code(15),
+    plantsys_usrmng:set_node_token(Id,Token),
+    NewState = State#state{node_token = Token},
+    Reply = {ok,Token},
+    {reply, Reply, NewState};
 
 handle_call({add_pump,PumpId}, _From, #state{pumpsup=PumpSup,pumps=Pumps} = State) ->
     {ok,PumpPid} = supervisor:start_child(PumpSup,[PumpId]),
@@ -523,6 +536,9 @@ get_ledsalarm(LedsId)  -> gen_server:call(?MODULE,{get_ledsalarm,LedsId}).
 set_ledstimer(LedsId,SH,SM,EH,EM) -> gen_server:call(?MODULE,{set_ledstimer,LedsId,{SH,SM},{EH,EM}}).
 stop_ledstimer(LedsId) -> gen_server:call(?MODULE,{stop_ledstimer,LedsId}).
 
+get_node_token() -> gen_server:call(?MODULE,{get_node_token}).
+generate_node_token() -> gen_server:call(?MODULE,{generate_node_token}).
+
 add_pump(PumpId) ->
     case whereis(websocket) of
         undefined -> undefined;
@@ -544,3 +560,10 @@ add_node(NodeId) ->
     end,
     gen_server:call(?MODULE,{add_node,NodeId}).
 
+create_code(Size) ->
+    BinToken = crypto:strong_rand_bytes(Size),
+    [case X of
+         43 -> 45;
+         47 -> 95;
+         L -> L
+     end || X<- base64:encode_to_string(BinToken)].

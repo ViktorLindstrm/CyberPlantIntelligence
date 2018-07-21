@@ -37,7 +37,8 @@ not_loggedin(Req0,Code,SessionID) ->
                    }, Body, Req1);
               C -> 
                   Client = "cpi",
-                  Pass = "kb8IqiKOyL20tw==",
+                  {ok,Pass} = application:get_env(rest_hello_world,client_secret),
+                  io:format("Client secret: ~p~n",[Pass]),
 
                   Auth = "Basic "++binary_to_list(base64:encode(Client++":"++Pass)),
                   Body = "grant_type=authorization_code&code="++binary_to_list(C)++"&redirect_uri=http://127.0.0.1:8080/login&client_id=cpi",

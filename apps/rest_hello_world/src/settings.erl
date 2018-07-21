@@ -2,7 +2,7 @@
 
 -export([init/2]).
 
--record(user, {sessionid,access_token,id,mng,sup,username}).
+-record(user, {node_token,sessionid,access_token,id,mng,sup,username}).
 
 init(Req0, Opts) ->
     Cookies = cowboy_req:parse_cookies(Req0),
@@ -253,19 +253,49 @@ echo(_, _, Req) ->
     cowboy_req:reply(405, Req).
 
 head() -> 
-    ["<link href=\"static/css/bootstrap.min.css\" rel=\"stylesheet\"> <link href=\"static/dashboard.css\" rel=\"stylesheet\"> <script src=\"/static/jquery.min.js\"></script>",
-     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" ].
+["<head>
+    <meta charset=\"utf-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <meta name=\"description\" content=\"\">
+    <meta name=\"author\" content=\"\">
+
+    <title>User config</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css\" integrity=\"sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u\" crossorigin=\"anonymous\">
+
+    <!-- Custom styles for this template -->
+    <link href=\"/static/dashboard.css\" rel=\"stylesheet\">
+
+    <script src=\"https://code.jquery.com/jquery-3.3.1.slim.min.js\"
+       integrity=\"sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=\"
+       crossorigin=\"anonymous\"></script>
+
+  </head>"].
+
+
+    %["<link href=\"static/css/bootstrap.min.css\" rel=\"stylesheet\"> <link href=\"static/dashboard.css\" rel=\"stylesheet\"> <script src=\"/static/jquery.min.js\"></script>",
+     %"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" ].
 
 head(DataPoints,Limit) -> 
-    ["<link href=\"static/css/bootstrap.min.css\" rel=\"stylesheet\"> <link href=\"static/dashboard.css\" rel=\"stylesheet\"> <script src=\"/static/jquery.min.js\"></script>"
-     ,"<script type=\"text/javascript\" src=\"/static/flot/jquery.flot.js\"></script>"
-     ,"<script type=\"text/javascript\" src=\"/static/flot/jquery.flot.time.js\"></script>"
-     ,"<script type=\"text/javascript\" src=\"/static/flot/jquery.flot.symbol.js\"></script>"
-     ,"<script type=\"text/javascript\" src=\"/static/flot/jquery.flot.axislabels.js\"></script>"
+    [
+"<link href=\"static/css/bootstrap.min.css\" rel=\"stylesheet\"> <link href=\"static/dashboard.css\" rel=\"stylesheet\">",
+
+"<script
+  src=\"https://code.jquery.com/jquery-3.3.1.min.js\"
+  integrity=\"sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=\"
+  crossorigin=\"anonymous\"></script>\""
+
+     ,"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.js\"></script>"
+     ,"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.time.js\"></script>"
+     ,"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.symbol.js\"></script>"
+     ,"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/flot/0.8.3/jquery.flot.axislables.js\"></script>"
+
      ,"<script>"
      ,"var markings = [ { yaxis: { from: 0, to: ",Limit," }, color: \"#FF6666\" }];"
      ,"var options = {grid: { markings: markings, backgroundColor: { colors: [\"#E6F9FF\",\"#96CBFF\"] } }, series: { lines: { show: true }, points: { show: true } }, yaxis:{ min:0 }, xaxis:{mode: \"time\" } };"
-     ,"$(document).ready(function() { $.plot( $(\"#flot-placeholder\"), [ ",DataPoints," ], options); }); </script>"].  
+     ,"$(document).ready(function() { $.plot( $(\"#flot-placeholder\"), [ ",DataPoints," ], options); }); 
+    </script>"].  
 
 nav() -> 
     "<nav class=\"navbar navbar-inverse navbar-fixed-top\">

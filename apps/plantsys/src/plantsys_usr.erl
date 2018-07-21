@@ -24,7 +24,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {id}).
+-record(state, {id,token}).
 
 %%%===================================================================
 %%% API
@@ -56,7 +56,8 @@ start_link(Id) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Id]) ->
-    {ok, #state{id=Id}}.
+	Token = create_code(20),
+    {ok, #state{id=Id,token = Token}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -72,8 +73,8 @@ init([Id]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(_Something, _From, State) ->
-    Reply = ok,
+handle_call({get_token}, _From, #state{token=Token} = State) ->
+    Reply = {ok,Token},
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
@@ -132,5 +133,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 
-
-
+create_code(Size) ->
+    BinToken = crypto:strong_rand_bytes(Size),
+    [case X of
+         43 -> 45;
+         47 -> 95;
+         L -> L
+     end || X<- base64:encode_to_string(BinToken)].

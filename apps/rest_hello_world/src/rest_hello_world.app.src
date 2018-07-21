@@ -7,8 +7,10 @@
    [kernel,
     stdlib
    ]},
-  {env,[]},
+  {env,[{client_secret, "6BIiZY6N+XtqYg=="}]},
+  
   {modules, []},
+
 
   {maintainers, []},
   {licenses, []},

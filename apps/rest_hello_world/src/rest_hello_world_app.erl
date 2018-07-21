@@ -13,16 +13,17 @@
 start(_Type, _Args) ->
     Dispatch = cowboy_router:compile([
                                       {'_', [
-                                             {"/sensor/:user/:id", toppage_handler, []},
-                                             {"/pump/:user/:id", pump_handler, []},
-                                             {"/leds/:user/:id", leds_handler, []},
+                                             {"/sensor/:token/:id", toppage_handler, []},
+                                             {"/pump/:token/:id", pump_handler, []},
+                                             {"/leds/:token/:id", leds_handler, []},
                                              {"/settings", settings, []},
                                              {"/login", login, []},
+                                             {"/user", userp, []},
                                              {"/", index_handler, []},
                                              %{"/test", cowboy_static, {priv_file, rest_hello_world, "index.html"}},
                                              {"/node", cowboy_static, {priv_file, rest_hello_world, "get.html"}},
                                              {"/websocket", ws_handler,[]},
-                                             {"/static/[...]", cowboy_static, {priv_dir, rest_hello_world, "static"}}
+											 {"/static/[...]", cowboy_static, {priv_dir, rest_hello_world, "static"}}
                                             ]}
                                      ]),
     {ok, _} = cowboy:start_clear(http, [{port, 8080}], #{

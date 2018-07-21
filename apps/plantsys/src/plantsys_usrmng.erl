@@ -12,6 +12,7 @@
 -export([
          login_user/2,
          validate_user/1,
+         get_token/1,
          add_node/2,
          add_leds/2,
          get_ledsalarm/2,
@@ -45,7 +46,10 @@
          get_pumps/1,
          set_image/3,
          get_image/2,
-         find_node/2
+         find_node/2,
+         get_node_token/1,
+         generate_node_token/1,
+         set_node_token/2
         ]).
 
 
@@ -69,7 +73,7 @@
 -define(SERVER, ?MODULE).
 
 -record(state, {users}).
--record(user, {sessionid,access_token,id,mng,sup,username}).
+-record(user, {node_token,sessionid,access_token,id,mng,sup,username}).
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -116,13 +120,27 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+
+handle_call({set_node_token,{UserId,Token}}, _From, #state{users=Users} = State) ->
+    Reply = case get_user(UserId,Users) of
+                {ok,User} ->
+                    NewUser = User#user{node_token = Token},
+                    set_user(NewUser,Users),
+                    ok;
+                {error,no_such_user}->
+                    {error,no_such_user}
+            end,
+    {reply, Reply, State};
+
+
+
 handle_call({add_user,UserId}, _From, #state{users=Users} = State) ->
-    {Reply} = case plantsys_usrsup:start_child(UserId) of 
-                             {ok, UserPid} ->  
+    {Reply} = case plantsys_usrsup:start_child(UserId) of
+                             {ok, UserPid} ->
                                  User = #user{id=UserId,sup=UserPid,username=UserId},
                                  set_user(User,Users),
                                  {ok};
-                             _ -> 
+                             _ ->
                                  {error}
                          end,
     {reply, Reply, State};
@@ -133,32 +151,42 @@ handle_call({validate_user,SessionID}, _From, #state{users=Users} = State) ->
 
 handle_call({login_user,{AccessToken,SessionID}}, _From, #state{users=Users} = State) ->
     UserId = get_user_id(AccessToken),
-    Reply = case get_user(UserId,Users) of 
+    Reply = case get_user(UserId,Users) of
                 {ok,User} ->
                                  NewUser = User#user{sessionid = SessionID,access_token=AccessToken},
                                  set_user(NewUser,Users),
                                  ok;
                 {error,no_such_user}->
-                                 case plantsys_usrsup:start_child(UserId) of 
-                                     {ok, UserPid} ->  
+                                 case plantsys_usrsup:start_child(UserId) of
+                                     {ok, UserPid} ->
                                          User = #user{sessionid=SessionID,id=UserId,sup=UserPid,username=UserId},
                                          set_user(User,Users),
                                          ok;
-                                     _ -> 
+                                     _ ->
                                          error
                                  end
                          end,
     {reply, Reply, State};
 
+handle_call({get_token,NodeToken}, _From, #state{users=Users} = State) ->
+    io:format("NodeToken: ~p~n",[NodeToken]),
+    Reply = case get_token(NodeToken,Users) of
+                {ok,Token} ->
+                    {ok,Token};
+                {error,E} ->
+                    {error,E}
+            end,
+    {reply, Reply, State};
+
 handle_call({get_user,UserId}, _From, #state{users=Users} = State) ->
-    Reply = case get_user(UserId,Users) of 
-                {ok,User} -> 
-                    Sup = User#user.mng,
-                    case Sup of
-                        undefined -> 
+    Reply = case get_user(UserId,Users) of
+                {ok,User} ->
+                    Mng = User#user.mng,
+                    case Mng of
+                        undefined ->
                             {error,mng_not_registered};
-                        _ -> 
-                            {ok,Sup}
+                        _ ->
+                            {ok,Mng}
                     end;
                 {error,no_such_user} ->
                     %io:format("Error: ~p~n",[E]),
@@ -166,14 +194,17 @@ handle_call({get_user,UserId}, _From, #state{users=Users} = State) ->
             end,
     {reply, Reply, State};
 
+
+
+
 handle_call({report_ledsup,{UserId,Pid}}, _From, #state{users=Users} = State) ->
-    Reply = case get_user(UserId,Users) of 
-                {ok,User} -> 
+    Reply = case get_user(UserId,Users) of
+                {ok,User} ->
                     Sup = User#user.mng,
                     case Sup of
-                        undefined -> 
+                        undefined ->
                             {error,mng_not_registered};
-                        _ -> 
+                        _ ->
                             gen_server:call(Sup,{reg_lesdup,Pid})
                     end;
                 {error,no_such_user} ->
@@ -197,8 +228,8 @@ handle_call({report_ledsup,{UserId,Pid}}, _From, #state{users=Users} = State) ->
     %{noreply, State}.
 handle_cast({reg_mng,{UserId,MngPid}}, #state{users=Users} = State) ->
     io:format("Reg ~p,Pid: ~p~n",[UserId,MngPid]),
-    case get_user(UserId,Users) of 
-        {ok,User} -> 
+    case get_user(UserId,Users) of
+        {ok,User} ->
             NewUser = User#user{mng=MngPid},
             %NewUsers = lists:keyreplace(UserId,1,Users,{UserId,NewUser}),
             set_user(NewUser,Users);
@@ -253,6 +284,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 add_user(Id) -> gen_server:call(?MODULE,{add_user,Id}).
 get_user(Id) -> gen_server:call(?MODULE,{get_user,Id}).
+get_token(Token) -> gen_server:call(?MODULE,{get_token,Token}).
 reg_mng(Id,MngPid) -> gen_server:cast(?MODULE,{reg_mng,{Id,MngPid}}).
 report_ledsup(Id,SupPid) -> gen_server:call(?MODULE,{report_ledsup,{Id,SupPid}}).
 
@@ -295,27 +327,36 @@ get_ledsalarm(UserId,LedsId)  -> {ok,Pid} = get_user(UserId),gen_server:call(Pid
 set_ledstimer(UserId,LedsId,SH,SM,EH,EM) -> {ok,Pid} = get_user(UserId),gen_server:call(Pid,{set_ledstimer,LedsId,{SH,SM},{EH,EM}}).
 stop_ledstimer(UserId,LedsId) -> {ok,Pid} = get_user(UserId),gen_server:call(Pid,{stop_ledstimer,LedsId}).
 
+generate_node_token(UserId) -> {ok,Pid} = get_user(UserId),gen_server:call(Pid,{generate_node_token}).
+get_node_token(UserId) -> {ok,Pid} = get_user(UserId),gen_server:call(Pid,{get_node_token}).
+set_node_token(UserId,Token) -> gen_server:call(?MODULE,{set_node_token,{UserId,Token}}).
+
 login_user(AccessToken,SessionID) -> gen_server:call(?MODULE,{login_user,{AccessToken,SessionID}}).
 validate_user(SessionID) -> gen_server:call(?MODULE,{validate_user,SessionID}).
 
-get_user_id(AccessToken) -> 
+get_user_id(AccessToken) ->
     Auth = "Bearer "++binary_to_list(AccessToken),
-    %Body = "grant_type=authorization_code&code="++binary_to_list(C)++"&redirect_uri=http://127.0.0.1:8080/login&client_id=cpi",
     Request = {"http://127.0.0.1:8180/userinfo", [{"Authorization",Auth}], [], []},
-    io:format("Request: ~p~n",[Request]),
     {ok, {{_Version, 200, _ReasonPhrase}, _Headers, Bdy}} = httpc:request(post, Request, [], []),
     list_to_atom(Bdy).
-    %User = jiffy:decode(Bdy),
-    %io:format("User: ~p~n",[Bdy]),
-    %viktor.
 
 
 get_user(UserID,Users) ->
+    io:format("UserID: ~n~p~n",[UserID]),
     Reply = case ets:select(Users, ets:fun2ms(fun(N = {_,#user{username=ID}}) when ID == UserID -> N end)) of
-                [{_,U}] -> 
+                [{_,U}] ->
                     {ok,U};
                 [] ->
                     {error, no_such_user}
+            end,
+    Reply.
+
+get_token(Token,Users) ->
+    Reply = case ets:select(Users, ets:fun2ms(fun(N = {_,#user{node_token=ID}}) when ID == Token -> N end)) of
+                [{_,User}] ->
+                    {ok,User};
+                [] ->
+                    {error, no_such_token}
             end,
     Reply.
 
@@ -323,10 +364,11 @@ set_user(User,Users) ->
     Reply = ets:insert(Users,{User#user.id,User}),
     Reply.
 
-validate_sessionid(SessionID,Users) -> 
-    case ets:select(Users, ets:fun2ms(fun(N = {_,#user{sessionid=SID}}) when SID == SessionID -> N end)) of 
+validate_sessionid(SessionID,Users) ->
+    case ets:select(Users, ets:fun2ms(fun(N = {_,#user{sessionid=SID}}) when SID == SessionID -> N end)) of
         [{_,User}] ->
             {ok,User};
         [] ->
             {error,no_such_user}
     end.
+
