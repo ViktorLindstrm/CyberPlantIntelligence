@@ -13,7 +13,7 @@ init(Req0, Opts) ->
                     false -> 
                         base64:encode(crypto:strong_rand_bytes(32))
                 end,
-    io:format("SessionID: ~p~n",[SessionID]),
+    logger:debug("SessionID: ~p~n",[SessionID]),
 
     Req = case plantsys_usrmng:validate_user(SessionID) of 
               {ok,_User} -> 
@@ -21,7 +21,7 @@ init(Req0, Opts) ->
                     <<"Location">> => <<"/">>
                    }, Req0);
               {error,_} ->
-                  io:format("User not found~n"),
+                  logger:error("User not found~n"),
                   #{code:=Code} = cowboy_req:match_qs([{code, [], undefined}], Req0),
                   not_loggedin(Req0,Code,SessionID)
           end,
@@ -38,7 +38,7 @@ not_loggedin(Req0,Code,SessionID) ->
               C -> 
                   Client = "cpi",
                   {ok,Pass} = application:get_env(rest_hello_world,client_secret),
-                  io:format("Client secret: ~p~n",[Pass]),
+                  logger:debug("Client secret: ~p~n",[Pass]),
 
                   Auth = "Basic "++binary_to_list(base64:encode(Client++":"++Pass)),
                   Body = "grant_type=authorization_code&code="++binary_to_list(C)++"&redirect_uri=http://127.0.0.1:8080/login&client_id=cpi",

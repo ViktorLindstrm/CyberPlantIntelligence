@@ -239,7 +239,7 @@ handle_call({stop_pumptimer,PumpId}, _From, #state{pumps=Pumps} = State) ->
 handle_call({add_data,{NodeId,Data}}, _From, #state{nodes=Nodes} = State) ->
     Reply = case lists:keyfind(NodeId,1,Nodes) of
                 {_,Pid} ->
-                    io:format("Data: ~p~n",[Data]),
+                    logger:debug("Data: ~p~n",[Data]),
                     gen_server:call(Pid,{add_data,Data}),
                     ok;
                 false ->
@@ -247,7 +247,27 @@ handle_call({add_data,{NodeId,Data}}, _From, #state{nodes=Nodes} = State) ->
             end,
     {reply, Reply, State};
 
-%ta bort dependency till noden för att ta bort pump.
+handle_call({remove_pump,PumpId}, _From, #state{nodes=Nodes,pumps=Pumps} = State) ->
+    {NewState,Reply} = case lists:keyfind(PumpId,1,Pumps) of
+                {_,PumpPid} ->
+                    logger:debug("remove PumpId: ~p~n",[PumpId]),
+                    {ok,PumpData} = gen_server:call(PumpPid,{get_current}),
+                    [case lists:keyfind(NodeId,1,Nodes) of 
+                         {_,NodePid} -> 
+                             logger:debug("Remove_Pump: ~p",[NodeId]),
+                             gen_server:call(NodePid,{set_pump,undefined});
+                         _ -> 
+                             logger:error("unable to find NodeId: ~p",[NodeId])
+                     end
+                     || NodeId <- maps:get(nodes,PumpData)],
+                    gen_server:stop(PumpPid),
+                    NewPumps = lists:keydelete(PumpId,1,Pumps),
+                    {State#state{pumps=NewPumps},ok};
+                false ->
+                    {State,error}
+            end,
+    {reply, Reply, NewState};
+
 handle_call({remove_pumpnode,{PumpId,NodeId}}, _From, #state{nodes=Nodes,pumps=Pumps} = State) ->
     Reply = case lists:keyfind(PumpId,1,Pumps) of
                 {_,PumpPid} ->

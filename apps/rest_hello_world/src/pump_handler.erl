@@ -39,8 +39,9 @@ get_update(Req,State) ->
 
     case plantsys_usrmng:get_pump(UserId,PumpId) of
         {error,_} ->  %%If no node exists
+            logger:error("Pump: ~p not found for user: ~p~n",[PumpId,UserId]),
             plantsys_usrmng:add_pump(UserId,PumpId),
-            io:format("PumpId: ~p~nStatus: ~p~n",[PumpId,Data]);
+            logger:error("PumpId: ~p~nStatus: ~p~n",[PumpId,Data]);
         _ -> undefined
     end,
     {true,Req2,State}.
@@ -55,7 +56,7 @@ send_update(Req,State) ->
     PumpId = erlang:binary_to_atom(PumpIdBin,utf8),
     case plantsys_usrmng:get_pump(UserId,PumpId) of
         {error,E} ->  %%If no node exists
-            io:format("Error: ~p~n",[E]),
+            logger:error("Error: ~p~n",[E]),
             plantsys_usrmng:add_pump(UserId,PumpId);
         _ -> undefined
     end,

@@ -19,7 +19,7 @@ init(Req0, Opts) ->
                               {undefined,_Pump,undefined} -> 
                                   pump(Method, Pump, Req0,UserID);
                               {_Node,undefined,undefined} -> 
-                                  io:format("sensor"),
+                                  logger:debug("sensor"),
                                   sensor(Method, Node, Req0,UserID);
                               {undefined,undefined,Leds} -> 
                                   leds(Method,Leds,Req0,UserID)
@@ -38,7 +38,7 @@ init(Req0, Opts) ->
 
     {ok, Req, Opts}.
 
-pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttimer">>,Status}|_],Pump,UserID) -> 
+pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttimer">>,Status}|_],Pump,UserID,Req) -> 
     PumpId = binary_to_atom(Pump,utf8),
     case Status of
         <<"on">> ->
@@ -47,19 +47,35 @@ pump_action([{<<"timerwait">>,WaitTimer},{<<"timerrun">>,RunTimer},{<<"starttime
             WTimerMin = erlang:binary_to_integer(WaitTimer)*1000*60*60,
             RTimerSec = erlang:binary_to_integer(RunTimer)*1000,
             plantsys_usrmng:start_pumptimer(UserID,PumpId,WTimerMin,RTimerSec)
-    end;
+    end,
+    cowboy_req:reply(302, #{
+      <<"Location">> => <<"/settings?pump=",Pump/binary>>
+     }, Req);
 
-pump_action([{<<"add">>,Node}|_],Pump,UserID) -> 
+pump_action([{<<"deletepump">>,_}|_],Pump,UserID,Req) -> 
+    PumpId = binary_to_atom(Pump,utf8),
+    plantsys_usrmng:remove_pump(UserID,PumpId),
+    cowboy_req:reply(302, #{
+      <<"Location">> => <<"/">>
+     }, Req);
+
+pump_action([{<<"add">>,Node}|_],Pump,UserID,Req) -> 
     NodeId = binary_to_atom(Node,utf8),
     PumpId = binary_to_atom(Pump,utf8),
-    plantsys_usrmng:set_pump(UserID,NodeId,PumpId);
+    plantsys_usrmng:set_pump(UserID,NodeId,PumpId),
+    cowboy_req:reply(302, #{
+      <<"Location">> => <<"/settings?pump=",Pump/binary>>
+     }, Req);
 
-pump_action([{<<"remove">>,Node}|_],Pump,UserID) -> 
+pump_action([{<<"remove">>,Node}|_],Pump,UserID,Req) -> 
     NodeId = binary_to_atom(Node,utf8),
     PumpId = binary_to_atom(Pump,utf8),
-    plantsys_usrmng:remove_pumpnode(UserID,PumpId,NodeId);
+    plantsys_usrmng:remove_pumpnode(UserID,PumpId,NodeId),
+    cowboy_req:reply(302, #{
+      <<"Location">> => <<"/settings?pump=",Pump/binary>>
+     }, Req);
 
-pump_action([{<<"status">>,Current}|_],Pump,UserID) -> 
+pump_action([{<<"status">>,Current}|_],Pump,UserID,Req) -> 
     PumpId = binary_to_atom(Pump,utf8),
     case Current of
         <<"undefined">> -> 
@@ -68,18 +84,20 @@ pump_action([{<<"status">>,Current}|_],Pump,UserID) ->
             plantsys_usrmng:stop_pump(UserID,PumpId);
         <<"off">> -> 
             plantsys_usrmng:start_pump(UserID,PumpId)
-    end.
-
-pump(<<"POST">>, Pump, Req0,UserID) ->
-    {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
-    io:format("PostVals:~p",[PostVals]),
-    pump_action(PostVals,Pump,UserID),
-
+    end,
     cowboy_req:reply(302, #{
       <<"Location">> => <<"/settings?pump=",Pump/binary>>
-     }, Req);
+     }, Req).
+
+pump(<<"POST">>, Pump, Req0,UserID) ->
+    logger:debug("Logger POST, Pump: ~p, UserID: ~p",[Pump,UserID]),
+    {ok, PostVals, Req} = cowboy_req:read_urlencoded_body(Req0),
+    logger:debug("PostVals:~p",[PostVals]),
+    pump_action(PostVals,Pump,UserID,Req);
+
 
 pump(<<"GET">>, Pump, Req0,UserID) ->
+    logger:debug("Logger GET, Pump: ~p, UserID: ~p",[Pump,UserID]),
     PumpId = erlang:binary_to_atom(Pump,utf8),
     {ok,PumpData} = plantsys_usrmng:get_pumpdata(UserID,PumpId),
     Connected = maps:get(nodes,PumpData),
@@ -171,7 +189,10 @@ pump_body(PumpId,Status,Connected,Timer,UserID) ->
      "<span id=\"next_timer\">"++TimerNext++"</span>",
      "<form action=\"settings?pump=",PumpId,"\" method=\"post\" accept-charset=\"utf-8\">",
      TimerFileds,
-     "</form>",
+     "</form></div><div>",
+     "<form action=\"settings?pump=",PumpId,"\" method=\"post\" accept-charset=\"utf-8\">
+          <button type=\"submit\" name=\"deletepump\" class=\"btn btn-danger btn-lg pull-left\"><span class=\"glyphicon glyphicon-warning-sign\" aria-hidden=\"true\"></span>  Delete</button>
+        </form>",
      "</div>"
     ].
 
@@ -311,6 +332,8 @@ nav() ->
           <ul class=\"nav navbar-nav navbar-right\">
             <li><a href=\"#\">Dashboard</a></li>
             <li><a href=\"#\">Settings</a></li>
+            <li><a href=\"/user\">Profile</a></li>
+            <li><a href=\"#\">Help</a></li>
           </ul>
           <form class=\"navbar-form navbar-right\">
             <input type=\"text\" class=\"form-control\" placeholder=\"Search...\">
@@ -370,7 +393,7 @@ pumpstatus(Pump,Last) ->
 
                 end
         end,
-    io:format("Pumpstatus: ~p~n",[R]),
+    logger:debug("Pumpstatus: ~p~n",[R]),
     R.
 
 int_to_hex(C) ->

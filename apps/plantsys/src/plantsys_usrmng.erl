@@ -41,6 +41,7 @@
          set_limit/3,
          add_pumpnode/3,
          remove_pumpnode/3,
+         remove_pump/2,
          set_name/3,
          get_nodes/1,
          get_pumps/1,
@@ -169,7 +170,7 @@ handle_call({login_user,{AccessToken,SessionID}}, _From, #state{users=Users} = S
     {reply, Reply, State};
 
 handle_call({get_token,NodeToken}, _From, #state{users=Users} = State) ->
-    io:format("NodeToken: ~p~n",[NodeToken]),
+    logger:debug("NodeToken: ~p~n",[NodeToken]),
     Reply = case get_token(NodeToken,Users) of
                 {ok,Token} ->
                     {ok,Token};
@@ -227,7 +228,7 @@ handle_call({report_ledsup,{UserId,Pid}}, _From, #state{users=Users} = State) ->
 %handle_cast(_Msg, State) ->
     %{noreply, State}.
 handle_cast({reg_mng,{UserId,MngPid}}, #state{users=Users} = State) ->
-    io:format("Reg ~p,Pid: ~p~n",[UserId,MngPid]),
+    logger:debug("Reg ~p,Pid: ~p~n",[UserId,MngPid]),
     case get_user(UserId,Users) of
         {ok,User} ->
             NewUser = User#user{mng=MngPid},
@@ -313,6 +314,7 @@ get_pumpdata(UserId,PumpId) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{
 get_pumps(UserId) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{get_pumps}).
 add_pumpnode(UserId,PumpId,Node) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{add_pumpnode,{PumpId,Node}}).
 remove_pumpnode(UserId,PumpId,Node) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{remove_pumpnode,{PumpId,Node}}).
+remove_pump(UserId,PumpId) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{remove_pump,PumpId}).
 start_pump(UserId,PumpId) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{start_pump,PumpId}).
 stop_pump(UserId,PumpId) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{stop_pump,PumpId}).
 start_pumptimer(UserId,PumpId,WaitTime,RunTime) ->{ok,Pid} = get_user(UserId), gen_server:call(Pid,{start_pumptimer,{PumpId,WaitTime,RunTime}}).
@@ -342,7 +344,7 @@ get_user_id(AccessToken) ->
 
 
 get_user(UserID,Users) ->
-    io:format("UserID: ~n~p~n",[UserID]),
+    logger:debug("UserID: ~n~p~n",[UserID]),
     Reply = case ets:select(Users, ets:fun2ms(fun(N = {_,#user{username=ID}}) when ID == UserID -> N end)) of
                 [{_,U}] ->
                     {ok,U};

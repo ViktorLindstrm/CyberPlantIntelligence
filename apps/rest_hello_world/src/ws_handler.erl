@@ -10,7 +10,7 @@
 init(Req, State) ->
 
     Cookies = cowboy_req:parse_cookies(Req),
-    io:format("Cookies: ~p~n",[Cookies]),
+    logger:debug("Cookies: ~p~n",[Cookies]),
     NewState = case lists:keyfind(<<"sessionid">>, 1,Cookies) of 
                {_,SessionID} -> 
                        #state{sessionid=SessionID};
@@ -26,13 +26,13 @@ websocket_init(State) ->
 websocket_handle({text, <<"nodes">>}, State) ->
     SessionID  = State#state.sessionid,
     UserId = case plantsys_usrmng:validate_user(SessionID) of 
-        {ok,User} -> 
+                 {ok,User} -> 
                      User#user.username;
 
-        {error,E} ->
-            io:format("Error: ~p~n",[E]),
-            undefined
-    end,
+                 {error,E} ->
+                     logger:error("Error: ~p~n",[E]),
+                     undefined
+             end,
 
 
   {ok,Nodes} = plantsys_usrmng:get_nodes(UserId),
@@ -42,12 +42,12 @@ websocket_handle({text, <<"nodes">>}, State) ->
 websocket_handle({text, <<"pumps">>}, State) ->
     SessionID  = State#state.sessionid,
     UserId = case plantsys_usrmng:validate_user(SessionID) of 
-        {ok,User} -> 
+                 {ok,User} -> 
                      User#user.username;
 
-        {error,E} ->
-            io:format("Error: ~p~n",[E]),
-            undefined
+                 {error,E} ->
+                     logger:error("Error: ~p~n",[E]),
+                     undefined
     end,
 
   {ok,Pumps} = plantsys_usrmng:get_pumps(UserId),
@@ -77,7 +77,7 @@ websocket_info({new_node}, State) ->
                      User#user.username;
 
         {error,E} ->
-            io:format("Error: ~p~n",[E]),
+                     logger:error("Error: ~p~n",[E]),
             undefined
     end,
 
@@ -92,7 +92,7 @@ websocket_info({new_pump}, State) ->
                      User#user.username;
 
         {error,E} ->
-            io:format("Error: ~p~n",[E]),
+                     logger:error("Error: ~p~n",[E]),
             undefined
     end,
 

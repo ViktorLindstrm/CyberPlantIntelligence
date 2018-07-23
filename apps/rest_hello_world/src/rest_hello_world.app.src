@@ -7,7 +7,7 @@
    [kernel,
     stdlib
    ]},
-  {env,[{client_secret, "6BIiZY6N+XtqYg=="}]},
+  {env,[{client_secret, "aIGTBTOSttVVVw=="}]},
   
   {modules, []},
 

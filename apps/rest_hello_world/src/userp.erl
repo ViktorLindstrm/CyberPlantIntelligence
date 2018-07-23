@@ -6,14 +6,13 @@
 %-record(user, {sessionid,access_token,id,mng,sup,username}).
 
 init(Req0, Opts) ->
-    io:format("user"),
     Cookies = cowboy_req:parse_cookies(Req0),
     Req = case lists:keyfind(<<"sessionid">>, 1,Cookies) of
               {_,SessionID} ->
                   case plantsys_usrmng:validate_user(SessionID) of
                       {ok,User} ->
 						  UserID = User#user.username,
-                            io:format("UserId: ~p~n",[UserID]),
+                            logger:debug("UserId: ~p~n",[UserID]),
                             NodeToken = case plantsys_usrmng:get_node_token(UserID) of
                                           {ok,undefined} -> 
                                               {ok,T} = plantsys_usrmng:generate_node_token(UserID),
@@ -78,6 +77,8 @@ nav() ->
           <ul class=\"nav navbar-nav navbar-right\">
             <li><a href=\"#\">Dashboard</a></li>
             <li><a href=\"#\">Settings</a></li>
+            <li><a href=\"/user\">Profile</a></li>
+            <li><a href=\"#\">Help</a></li>
           </ul>
           <form class=\"navbar-form navbar-right\">
             <input type=\"text\" class=\"form-control\" placeholder=\"Search...\">
@@ -119,7 +120,7 @@ body(Name,Token) ->
            <h1 class=\"page-header\">Settings ",Name,"</h1>
            <div class=\"row placeholders\" id=\"settings\">
              <div class=\"container\">
-                  <p>Token:",Token,"</p>
+                  <p>Token: <b>",Token,"</b></p>
              </div>
              </div>
            </div>

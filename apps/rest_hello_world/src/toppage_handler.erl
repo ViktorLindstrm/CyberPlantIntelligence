@@ -40,6 +40,7 @@ add_datapoint(Req,State) ->
     NodeId = erlang:binary_to_atom(NodeIdBin,utf8),
     case plantsys_usrmng:find_node(UserId,NodeId) of
         {error,_} ->
+            logger:error("Node: ~p not found for user: ~p~n",[NodeId,UserId]),
             plantsys_usrmng:add_node(UserId,NodeId);
         _ -> undefined
     end,

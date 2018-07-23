@@ -6,19 +6,19 @@
 
 init(Req0, Opts) ->
     Cookies = cowboy_req:parse_cookies(Req0),
-    io:format("Cookies: ~p~n",[Cookies]),
+    logger:debug("Cookies: ~p~n",[Cookies]),
     Req1 = case lists:keyfind(<<"sessionid">>, 1,Cookies) of 
                {_,SessionID} -> 
                    case plantsys_usrmng:validate_user(SessionID) of 
                        {ok,_User} -> 
-                           io:format("User Found"),
+                           logger:debug("User Found"),
                            Body = body(),
                            cowboy_req:reply(200, #{
                              <<"content-type">> => <<"text/html">>
                             }, Body, Req0);
 
                        {error,E} ->
-                           io:format("Error: ~p~n",[E]),
+                           logger:error("Error: ~p~n",[E]),
                            Req = cowboy_req:reply(302, #{
                                    <<"Location">> => <<"/login">>
                                   }, Req0),
@@ -190,7 +190,7 @@ body() ->
           <ul class=\"nav navbar-nav navbar-right\">
             <li><a href=\"#\">Dashboard</a></li>
             <li><a href=\"#\">Settings</a></li>
-            <li><a href=\"#\">Profile</a></li>
+            <li><a href=\"/user\">Profile</a></li>
             <li><a href=\"#\">Help</a></li>
           </ul>
           <form class=\"navbar-form navbar-right\">
