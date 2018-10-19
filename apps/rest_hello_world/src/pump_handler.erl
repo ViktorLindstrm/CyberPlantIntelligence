@@ -51,30 +51,37 @@ send_update(Req,State) ->
     PumpIdBin = cowboy_req:binding(id, Req),
     NodeToken = binary_to_list(cowboy_req:binding(token, Req)),
     {ok,User} = plantsys_usrmng:get_token(NodeToken),
-    UserId = User#user.id,
+    case plantsys_usrmng:get_token(NodeToken) of 
+        {ok,User} -> 
+            logger:debug("Got token for user: ~p",[User]),
+            UserId = User#user.id,
 
-    PumpId = erlang:binary_to_atom(PumpIdBin,utf8),
-    case plantsys_usrmng:get_pump(UserId,PumpId) of
-        {error,E} ->  %%If no node exists
-            logger:error("Error: ~p~n",[E]),
-            plantsys_usrmng:add_pump(UserId,PumpId);
-        _ -> undefined
-    end,
-    {ok,Status} = plantsys_usrmng:get_pumpdata(UserId,PumpId),
-    Timer = maps:get(timer,Status),
-    TStatus = maps:get(status,Status),
+            PumpId = erlang:binary_to_atom(PumpIdBin,utf8),
+            case plantsys_usrmng:get_pump(UserId,PumpId) of
+                {error,E} ->  %%If no node exists
+                    logger:error("Error get_pump: ~p~n",[E]),
+                    plantsys_usrmng:add_pump(UserId,PumpId);
+                _ -> undefined
+            end,
+            {ok,Status} = plantsys_usrmng:get_pumpdata(UserId,PumpId),
+            Timer = maps:get(timer,Status),
+            TStatus = maps:get(status,Status),
 
 
-    Next = maps:get(next,Timer),
-    {Me,S,_Mi} = erlang:timestamp(),
+            Next = maps:get(next,Timer),
+            {Me,S,_Mi} = erlang:timestamp(),
 
-    Now = Me*1000000+S,
-    Left = Next-Now, 
+            Now = Me*1000000+S,
+            Left = Next-Now, 
 
-    TimeRun = maps:get(tr,Timer) div 1000,
+            TimeRun = maps:get(tr,Timer) div 1000,
 
-    JsonStatus = jiffy:encode(#{status => TStatus, run => TimeRun, left => Left}),
-    {JsonStatus, Req, State}.
+            JsonStatus = jiffy:encode(#{status => TStatus, run => TimeRun, left => Left}),
+            {JsonStatus, Req, State};
+        {error,E} ->
+            logger:error("Get token error: ~p",[E]),
+            {jiffy:encode(#{error => E}), Req, State}
+    end.
 
 
 

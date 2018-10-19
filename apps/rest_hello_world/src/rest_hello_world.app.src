@@ -7,7 +7,11 @@
    [kernel,
     stdlib
    ]},
-  {env,[{client_secret, "aIGTBTOSttVVVw=="}]},
+  {env,[
+  {client_secret, "Lm0T3w66/86Ixg=="},
+  {client_id, "cpi"},
+  {idp_host, "http://127.0.0.1:8180"}
+  ]},
   
   {modules, []},
 
