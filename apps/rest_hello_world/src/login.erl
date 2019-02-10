@@ -29,7 +29,7 @@ init(Req0, Opts) ->
 
 not_loggedin(Req0,Code,SessionID) ->
     {ok,ClientId} = application:get_env(rest_hello_world,client_id),
-    {ok,Pass} = application:get_env(rest_hello_world,client_secret),
+    {ok,Pass} = plantsys_mng:get_client_secret(),
     {ok,IDPHost} = application:get_env(rest_hello_world,idp_host),
     Scheme = cowboy_req:scheme(Req0),
     Host = cowboy_req:host(Req0),

@@ -15,6 +15,8 @@
 
 -export([add_node/1,
          add_leds/1,
+         get_client_secret/0,
+         set_client_secret/1,
          get_ledsalarm/1,
          get_ledstimer/1,
          stop_ledstimer/1,
@@ -62,7 +64,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {node_token=undefined,id=undefined,nodesup,nodes=[],pumpsup,pumps=[],ledsup,leds=[]}).
+-record(state, {client_secret=undefined,node_token=undefined,id=undefined,nodesup,nodes=[],pumpsup,pumps=[],ledsup,leds=[]}).
 
 %%%===================================================================
 %%% API
@@ -125,6 +127,15 @@ handle_call({generate_node_token}, _From, #state{id=Id} = State) ->
     NewState = State#state{node_token = Token},
     Reply = {ok,Token},
     {reply, Reply, NewState};
+
+handle_call({set_client_secret,ClientSecret}, _From, State) ->
+    NewState = State#state{client_secret=ClientSecret},
+    Reply = ok,
+    {reply, Reply, NewState};
+
+handle_call({get_client_secret}, _From, #state{client_secret = ClientSecret} = State) ->
+    Reply = {ok,ClientSecret},
+    {reply, Reply, State};
 
 handle_call({add_pump,PumpId}, _From, #state{pumpsup=PumpSup,pumps=Pumps} = State) ->
     {ok,PumpPid} = supervisor:start_child(PumpSup,[PumpId]),
@@ -523,6 +534,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 
+set_client_secret(ClientSecret) -> gen_server:call(?MODULE,{set_client_secret,ClientSecret}).
+get_client_secret() -> gen_server:call(?MODULE,{get_client_secret}).
 new_datapoint(NodeId,Data) -> gen_server:call(?MODULE,{add_data,{NodeId,Data}}).
 get_data(NodeId) -> gen_server:call(?MODULE,{get_data,NodeId}).
 find_node(NodeId) -> gen_server:call(?MODULE,{find_node,NodeId}).
